@@ -21,6 +21,7 @@ import CourseClasses from "./pages/CourseClasses";
 import CourseStudents from "./pages/CourseStudents";
 import CoursePayments from "./pages/CoursePayments";
 import Courses from "./pages/Courses";
+import CourseDetail from "./pages/CourseDetail";
 import AdminDashboard from "./pages/AdminDashboard";
 import Sitemap from "./pages/Sitemap";
 import NotFound from "./pages/NotFound";
@@ -47,6 +48,7 @@ const App = () => (
           <Route path="/club/payments" element={<ClubPayments />} />
           <Route path="/club/scores" element={<ClubScores />} />
           <Route path="/courses" element={<Courses />} />
+          <Route path="/courses/:id" element={<CourseDetail />} />
           <Route path="/course" element={<CourseDashboard />} />
           <Route path="/course/new" element={<CourseNew />} />
           <Route path="/course/classes" element={<CourseClasses />} />
