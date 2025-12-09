@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SportBadge, SportType } from "@/components/ui/SportBadge";
 import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
@@ -31,8 +32,9 @@ import {
   MapPin,
   Users,
   ChevronRight,
+  Trash2,
   X,
-  Trash2
+  UserPlus
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import {
@@ -61,16 +63,16 @@ const mockActivitiesWithScores = [
       { id: "p6", name: "張明德" },
     ],
     scores: [
-      { id: "s1", player1: "王小明", player2: "李大華", score1: 21, score2: 18, type: "singles" },
-      { id: "s2", player1: "陳美玲", player2: "黃志強", score1: 21, score2: 15, type: "singles" },
-      { id: "s3", player1: "林小芳", player2: "張明德", score1: 21, score2: 12, type: "singles" },
+      { id: "s1", teamA: ["王小明"], teamB: ["李大華"], scoreA: 21, scoreB: 18, type: "1v1" },
+      { id: "s2", teamA: ["陳美玲", "黃志強"], teamB: ["林小芳", "張明德"], scoreA: 21, scoreB: 15, type: "2v2" },
+      { id: "s3", teamA: ["林小芳"], teamB: ["王小明"], scoreA: 21, scoreB: 12, type: "1v1" },
     ],
     matchCount: 3,
   },
   {
     id: "2",
-    title: "週六羽球雙打",
-    sport: "badminton" as SportType,
+    title: "週六籃球3v3鬥牛",
+    sport: "basketball" as SportType,
     date: "11/30 (六)",
     time: "15:00-18:00",
     location: "台北市中山運動中心",
@@ -79,30 +81,39 @@ const mockActivitiesWithScores = [
       { id: "p2", name: "李大華" },
       { id: "p3", name: "陳美玲" },
       { id: "p4", name: "黃志強" },
+      { id: "p5", name: "林小芳" },
+      { id: "p6", name: "張明德" },
     ],
     scores: [
-      { id: "s4", player1: "王小明/李大華", player2: "陳美玲/黃志強", score1: 21, score2: 19, type: "doubles" },
+      { id: "s4", teamA: ["王小明", "李大華", "陳美玲"], teamB: ["黃志強", "林小芳", "張明德"], scoreA: 21, scoreB: 19, type: "3v3" },
     ],
     matchCount: 1,
   },
   {
     id: "3",
-    title: "週三羽球練習",
-    sport: "badminton" as SportType,
+    title: "排球友誼賽",
+    sport: "volleyball" as SportType,
     date: "11/27 (三)",
     time: "19:00-21:00",
     location: "台北市大安運動中心",
     participants: [
       { id: "p1", name: "王小明" },
       { id: "p2", name: "李大華" },
+      { id: "p3", name: "陳美玲" },
+      { id: "p4", name: "黃志強" },
       { id: "p5", name: "林小芳" },
       { id: "p6", name: "張明德" },
+      { id: "p7", name: "周美麗" },
+      { id: "p8", name: "吳建國" },
+      { id: "p9", name: "劉雅琪" },
+      { id: "p10", name: "許志豪" },
+      { id: "p11", name: "蔡宜君" },
+      { id: "p12", name: "鄭大同" },
     ],
     scores: [
-      { id: "s5", player1: "林小芳", player2: "王小明", score1: 18, score2: 21, type: "singles" },
-      { id: "s6", player1: "李大華", player2: "張明德", score1: 21, score2: 10, type: "singles" },
+      { id: "s5", teamA: ["王小明", "李大華", "陳美玲", "黃志強", "林小芳", "張明德"], teamB: ["周美麗", "吳建國", "劉雅琪", "許志豪", "蔡宜君", "鄭大同"], scoreA: 25, scoreB: 21, type: "6v6" },
     ],
-    matchCount: 2,
+    matchCount: 1,
   },
 ];
 
@@ -114,12 +125,24 @@ const mockRankings = [
   { rank: 5, name: "黃志強", wins: 6, losses: 6, winRate: "50.0%" },
 ];
 
+const matchTypeOptions = [
+  { value: "1v1", label: "單打 (1v1)", teamSize: 1 },
+  { value: "2v2", label: "雙打 (2v2)", teamSize: 2 },
+  { value: "3v3", label: "3v3", teamSize: 3 },
+  { value: "4v4", label: "4v4", teamSize: 4 },
+  { value: "5v5", label: "5v5", teamSize: 5 },
+  { value: "6v6", label: "6v6", teamSize: 6 },
+  { value: "custom", label: "自訂人數", teamSize: 0 },
+];
+
 interface ScoreEntry {
   id: string;
-  player1: string;
-  player2: string;
-  score1: string;
-  score2: string;
+  matchType: string;
+  customTeamSize: number;
+  teamA: string[];
+  teamB: string[];
+  scoreA: string;
+  scoreB: string;
 }
 
 export default function ClubScores() {
@@ -128,7 +151,7 @@ export default function ClubScores() {
   const [showAddScores, setShowAddScores] = useState(false);
   const [addingToActivity, setAddingToActivity] = useState<typeof mockActivitiesWithScores[0] | null>(null);
   const [scoreEntries, setScoreEntries] = useState<ScoreEntry[]>([
-    { id: "1", player1: "", player2: "", score1: "", score2: "" }
+    { id: "1", matchType: "1v1", customTeamSize: 1, teamA: [], teamB: [], scoreA: "", scoreB: "" }
   ]);
 
   const filteredActivities = mockActivitiesWithScores.filter(activity =>
@@ -137,10 +160,15 @@ export default function ClubScores() {
 
   const totalMatches = mockActivitiesWithScores.reduce((sum, a) => sum + a.matchCount, 0);
 
+  const getTeamSize = (entry: ScoreEntry) => {
+    if (entry.matchType === "custom") return entry.customTeamSize;
+    return matchTypeOptions.find(o => o.value === entry.matchType)?.teamSize || 1;
+  };
+
   const handleAddScoreRow = () => {
     setScoreEntries([
       ...scoreEntries,
-      { id: Date.now().toString(), player1: "", player2: "", score1: "", score2: "" }
+      { id: Date.now().toString(), matchType: "1v1", customTeamSize: 1, teamA: [], teamB: [], scoreA: "", scoreB: "" }
     ]);
   };
 
@@ -150,26 +178,66 @@ export default function ClubScores() {
     }
   };
 
-  const handleScoreChange = (id: string, field: keyof ScoreEntry, value: string) => {
-    setScoreEntries(scoreEntries.map(entry =>
-      entry.id === id ? { ...entry, [field]: value } : entry
-    ));
+  const handleScoreChange = (id: string, field: keyof ScoreEntry, value: string | string[] | number) => {
+    setScoreEntries(scoreEntries.map(entry => {
+      if (entry.id !== id) return entry;
+      
+      // Reset teams when match type changes
+      if (field === "matchType" && typeof value === "string") {
+        return { ...entry, matchType: value, teamA: [], teamB: [] };
+      }
+      
+      if (field === "customTeamSize" && typeof value === "number") {
+        return { ...entry, customTeamSize: value };
+      }
+      
+      if ((field === "scoreA" || field === "scoreB") && typeof value === "string") {
+        return { ...entry, [field]: value };
+      }
+      
+      return entry;
+    }));
+  };
+
+  const handleAddPlayerToTeam = (entryId: string, team: "teamA" | "teamB", playerName: string) => {
+    setScoreEntries(scoreEntries.map(entry => {
+      if (entry.id !== entryId) return entry;
+      const teamSize = getTeamSize(entry);
+      if (entry[team].length >= teamSize) return entry;
+      if (entry[team].includes(playerName)) return entry;
+      // Don't allow same player in both teams
+      const otherTeam = team === "teamA" ? "teamB" : "teamA";
+      if (entry[otherTeam].includes(playerName)) return entry;
+      return { ...entry, [team]: [...entry[team], playerName] };
+    }));
+  };
+
+  const handleRemovePlayerFromTeam = (entryId: string, team: "teamA" | "teamB", playerName: string) => {
+    setScoreEntries(scoreEntries.map(entry => {
+      if (entry.id !== entryId) return entry;
+      return { ...entry, [team]: entry[team].filter(p => p !== playerName) };
+    }));
   };
 
   const handleOpenAddScores = (activity: typeof mockActivitiesWithScores[0]) => {
     setAddingToActivity(activity);
-    setScoreEntries([{ id: "1", player1: "", player2: "", score1: "", score2: "" }]);
+    setScoreEntries([{ id: "1", matchType: "1v1", customTeamSize: 1, teamA: [], teamB: [], scoreA: "", scoreB: "" }]);
     setShowAddScores(true);
   };
 
   const handleSaveScores = () => {
-    const validEntries = scoreEntries.filter(
-      entry => entry.player1 && entry.player2 && entry.score1 && entry.score2
-    );
+    const validEntries = scoreEntries.filter(entry => {
+      const teamSize = getTeamSize(entry);
+      return entry.teamA.length === teamSize && 
+             entry.teamB.length === teamSize && 
+             entry.scoreA && 
+             entry.scoreB;
+    });
     
     if (validEntries.length === 0) {
       toast({
         title: "請填寫至少一筆完整的比賽紀錄",
+        description: "確保每隊人數符合比賽類型並填入分數",
         variant: "destructive",
       });
       return;
@@ -181,6 +249,18 @@ export default function ClubScores() {
     });
     setShowAddScores(false);
     setAddingToActivity(null);
+  };
+
+  const formatTeamDisplay = (team: string[]) => {
+    if (team.length <= 2) return team.join(" / ");
+    return `${team.slice(0, 2).join("、")} +${team.length - 2}`;
+  };
+
+  const getAvailablePlayers = (entry: ScoreEntry) => {
+    if (!addingToActivity) return [];
+    return addingToActivity.participants.filter(
+      p => !entry.teamA.includes(p.name) && !entry.teamB.includes(p.name)
+    );
   };
 
   return (
@@ -398,36 +478,60 @@ export default function ClubScores() {
 
                   <div className="space-y-3">
                     {selectedActivity.scores.map((score, index) => (
-                      <div key={score.id} className="flex items-center justify-between p-4 rounded-lg bg-secondary">
-                        <div className="text-sm text-muted-foreground w-8">#{index + 1}</div>
-                        <div className="flex items-center gap-4 flex-1 justify-center">
-                          <div className="text-right min-w-[100px]">
-                            <div className="font-medium text-foreground">{score.player1}</div>
+                      <div key={score.id} className="p-4 rounded-lg bg-secondary">
+                        <div className="flex items-center justify-between mb-2">
+                          <Badge variant="outline">{score.type}</Badge>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-8 w-8">
+                                <MoreVertical className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem>編輯</DropdownMenuItem>
+                              <DropdownMenuItem className="text-destructive">刪除</DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+                        <div className="flex items-center gap-4">
+                          <div className="flex-1 text-right">
+                            <div className="font-medium text-foreground">
+                              {score.teamA.length <= 2 
+                                ? score.teamA.join(" / ")
+                                : (
+                                  <div className="space-y-0.5">
+                                    {score.teamA.map((p, i) => (
+                                      <div key={i} className="text-sm">{p}</div>
+                                    ))}
+                                  </div>
+                                )
+                              }
+                            </div>
                           </div>
-                          <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-background">
-                            <span className={`text-xl font-bold ${score.score1 > score.score2 ? "text-primary" : "text-muted-foreground"}`}>
-                              {score.score1}
+                          <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-background shrink-0">
+                            <span className={`text-xl font-bold ${score.scoreA > score.scoreB ? "text-primary" : "text-muted-foreground"}`}>
+                              {score.scoreA}
                             </span>
                             <span className="text-muted-foreground">:</span>
-                            <span className={`text-xl font-bold ${score.score2 > score.score1 ? "text-primary" : "text-muted-foreground"}`}>
-                              {score.score2}
+                            <span className={`text-xl font-bold ${score.scoreB > score.scoreA ? "text-primary" : "text-muted-foreground"}`}>
+                              {score.scoreB}
                             </span>
                           </div>
-                          <div className="text-left min-w-[100px]">
-                            <div className="font-medium text-foreground">{score.player2}</div>
+                          <div className="flex-1 text-left">
+                            <div className="font-medium text-foreground">
+                              {score.teamB.length <= 2 
+                                ? score.teamB.join(" / ")
+                                : (
+                                  <div className="space-y-0.5">
+                                    {score.teamB.map((p, i) => (
+                                      <div key={i} className="text-sm">{p}</div>
+                                    ))}
+                                  </div>
+                                )
+                              }
+                            </div>
                           </div>
                         </div>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon">
-                              <MoreVertical className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem>編輯</DropdownMenuItem>
-                            <DropdownMenuItem className="text-destructive">刪除</DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
                       </div>
                     ))}
 
@@ -455,7 +559,7 @@ export default function ClubScores() {
 
         {/* Batch Add Scores Dialog */}
         <Dialog open={showAddScores} onOpenChange={setShowAddScores}>
-          <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>新增比賽紀錄</DialogTitle>
             </DialogHeader>
@@ -483,82 +587,165 @@ export default function ClubScores() {
                     <h4 className="font-semibold text-foreground">比賽紀錄</h4>
                     <Button variant="outline" size="sm" onClick={handleAddScoreRow} className="gap-2">
                       <Plus className="h-4 w-4" />
-                      新增一列
+                      新增一場
                     </Button>
                   </div>
 
-                  <div className="space-y-3">
-                    {/* Header */}
-                    <div className="hidden md:grid grid-cols-[1fr,60px,60px,1fr,40px] gap-3 px-2 text-sm font-medium text-muted-foreground">
-                      <div>選手 A</div>
-                      <div className="text-center">分數</div>
-                      <div className="text-center">分數</div>
-                      <div>選手 B</div>
-                      <div></div>
-                    </div>
+                  <div className="space-y-6">
+                    {scoreEntries.map((entry, index) => {
+                      const teamSize = getTeamSize(entry);
+                      const availablePlayers = getAvailablePlayers(entry);
+                      
+                      return (
+                        <div key={entry.id} className="p-4 rounded-lg border bg-card">
+                          <div className="flex items-center justify-between mb-4">
+                            <span className="font-medium text-foreground">第 {index + 1} 場</span>
+                            <div className="flex items-center gap-2">
+                              <Select
+                                value={entry.matchType}
+                                onValueChange={(value) => handleScoreChange(entry.id, "matchType", value)}
+                              >
+                                <SelectTrigger className="w-[140px]">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {matchTypeOptions.map((option) => (
+                                    <SelectItem key={option.value} value={option.value}>
+                                      {option.label}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              
+                              {entry.matchType === "custom" && (
+                                <Input
+                                  type="number"
+                                  min={1}
+                                  max={20}
+                                  value={entry.customTeamSize}
+                                  onChange={(e) => handleScoreChange(entry.id, "customTeamSize", parseInt(e.target.value) || 1)}
+                                  className="w-20"
+                                  placeholder="人數"
+                                />
+                              )}
+                              
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleRemoveScoreRow(entry.id)}
+                                disabled={scoreEntries.length === 1}
+                                className="text-muted-foreground hover:text-destructive"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </div>
 
-                    {scoreEntries.map((entry, index) => (
-                      <div key={entry.id} className="grid grid-cols-1 md:grid-cols-[1fr,60px,60px,1fr,40px] gap-3 p-3 rounded-lg bg-secondary items-center">
-                        <div className="md:hidden text-sm text-muted-foreground mb-1">第 {index + 1} 場</div>
-                        <Select
-                          value={entry.player1}
-                          onValueChange={(value) => handleScoreChange(entry.id, "player1", value)}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="選擇選手 A" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {addingToActivity.participants
-                              .filter(p => p.name !== entry.player2)
-                              .map((p) => (
-                                <SelectItem key={p.id} value={p.name}>{p.name}</SelectItem>
-                              ))}
-                          </SelectContent>
-                        </Select>
-                        <Input
-                          type="number"
-                          placeholder="分數"
-                          value={entry.score1}
-                          onChange={(e) => handleScoreChange(entry.id, "score1", e.target.value)}
-                          className="text-center"
-                          min={0}
-                          max={99}
-                        />
-                        <Input
-                          type="number"
-                          placeholder="分數"
-                          value={entry.score2}
-                          onChange={(e) => handleScoreChange(entry.id, "score2", e.target.value)}
-                          className="text-center"
-                          min={0}
-                          max={99}
-                        />
-                        <Select
-                          value={entry.player2}
-                          onValueChange={(value) => handleScoreChange(entry.id, "player2", value)}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="選擇選手 B" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {addingToActivity.participants
-                              .filter(p => p.name !== entry.player1)
-                              .map((p) => (
-                                <SelectItem key={p.id} value={p.name}>{p.name}</SelectItem>
-                              ))}
-                          </SelectContent>
-                        </Select>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleRemoveScoreRow(entry.id)}
-                          disabled={scoreEntries.length === 1}
-                          className="text-muted-foreground hover:text-destructive"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    ))}
+                          <div className="grid grid-cols-1 md:grid-cols-[1fr,auto,1fr] gap-4 items-start">
+                            {/* Team A */}
+                            <div className="space-y-3">
+                              <Label className="text-sm font-medium">
+                                隊伍 A ({entry.teamA.length}/{teamSize})
+                              </Label>
+                              <div className="min-h-[60px] p-3 rounded-lg bg-secondary">
+                                <div className="flex flex-wrap gap-2">
+                                  {entry.teamA.map((player) => (
+                                    <Badge key={player} variant="default" className="gap-1 pr-1">
+                                      {player}
+                                      <button
+                                        onClick={() => handleRemovePlayerFromTeam(entry.id, "teamA", player)}
+                                        className="ml-1 hover:bg-primary-foreground/20 rounded p-0.5"
+                                      >
+                                        <X className="h-3 w-3" />
+                                      </button>
+                                    </Badge>
+                                  ))}
+                                  {entry.teamA.length < teamSize && (
+                                    <Select
+                                      onValueChange={(value) => handleAddPlayerToTeam(entry.id, "teamA", value)}
+                                    >
+                                      <SelectTrigger className="w-auto h-7 px-2 text-xs gap-1">
+                                        <UserPlus className="h-3 w-3" />
+                                        <span>加入</span>
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        {availablePlayers.map((p) => (
+                                          <SelectItem key={p.id} value={p.name}>{p.name}</SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Score */}
+                            <div className="flex items-end gap-2 justify-center pb-3">
+                              <div className="space-y-1">
+                                <Label className="text-xs text-center block">分數</Label>
+                                <Input
+                                  type="number"
+                                  min={0}
+                                  max={999}
+                                  value={entry.scoreA}
+                                  onChange={(e) => handleScoreChange(entry.id, "scoreA", e.target.value)}
+                                  className="w-16 text-center text-lg font-bold"
+                                />
+                              </div>
+                              <span className="text-xl text-muted-foreground pb-1">:</span>
+                              <div className="space-y-1">
+                                <Label className="text-xs text-center block opacity-0">分數</Label>
+                                <Input
+                                  type="number"
+                                  min={0}
+                                  max={999}
+                                  value={entry.scoreB}
+                                  onChange={(e) => handleScoreChange(entry.id, "scoreB", e.target.value)}
+                                  className="w-16 text-center text-lg font-bold"
+                                />
+                              </div>
+                            </div>
+
+                            {/* Team B */}
+                            <div className="space-y-3">
+                              <Label className="text-sm font-medium">
+                                隊伍 B ({entry.teamB.length}/{teamSize})
+                              </Label>
+                              <div className="min-h-[60px] p-3 rounded-lg bg-secondary">
+                                <div className="flex flex-wrap gap-2">
+                                  {entry.teamB.map((player) => (
+                                    <Badge key={player} variant="default" className="gap-1 pr-1">
+                                      {player}
+                                      <button
+                                        onClick={() => handleRemovePlayerFromTeam(entry.id, "teamB", player)}
+                                        className="ml-1 hover:bg-primary-foreground/20 rounded p-0.5"
+                                      >
+                                        <X className="h-3 w-3" />
+                                      </button>
+                                    </Badge>
+                                  ))}
+                                  {entry.teamB.length < teamSize && (
+                                    <Select
+                                      onValueChange={(value) => handleAddPlayerToTeam(entry.id, "teamB", value)}
+                                    >
+                                      <SelectTrigger className="w-auto h-7 px-2 text-xs gap-1">
+                                        <UserPlus className="h-3 w-3" />
+                                        <span>加入</span>
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        {availablePlayers.map((p) => (
+                                          <SelectItem key={p.id} value={p.name}>{p.name}</SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
 
@@ -567,7 +754,10 @@ export default function ClubScores() {
                     取消
                   </Button>
                   <Button onClick={handleSaveScores}>
-                    儲存全部 ({scoreEntries.filter(e => e.player1 && e.player2 && e.score1 && e.score2).length} 筆)
+                    儲存全部 ({scoreEntries.filter(e => {
+                      const size = getTeamSize(e);
+                      return e.teamA.length === size && e.teamB.length === size && e.scoreA && e.scoreB;
+                    }).length} 筆)
                   </Button>
                 </div>
               </div>
