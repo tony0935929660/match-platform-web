@@ -41,7 +41,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
-import { Switch } from "@/components/ui/switch";
+
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
 
@@ -167,11 +167,8 @@ export default function Activities() {
     description: "",
     maxSlots: 8,
     price: 150,
-    levelMin: 3,
-    levelMax: 5,
-    isCasualOpen: true,
-    casualSlots: 2,
-    casualFee: 180,
+    levelMin: 1,
+    levelMax: 8,
   });
 
   const filteredActivities = mockActivities.filter((activity) => {
@@ -204,11 +201,8 @@ export default function Activities() {
       description: "",
       maxSlots: 8,
       price: 150,
-      levelMin: 3,
-      levelMax: 5,
-      isCasualOpen: true,
-      casualSlots: 2,
-      casualFee: 180,
+      levelMin: 1,
+      levelMax: 8,
     });
   };
 
@@ -578,61 +572,27 @@ export default function Activities() {
 
               {/* Level Range */}
               <div className="space-y-3">
-                <Label>等級範圍</Label>
-                <div className="flex items-center gap-3">
-                  <SkillLevelBadge level={newActivity.levelMin} size="md" />
-                  <span className="text-muted-foreground">-</span>
-                  <SkillLevelBadge level={newActivity.levelMax} size="md" />
-                </div>
-                <Slider
-                  value={[newActivity.levelMin, newActivity.levelMax]}
-                  onValueChange={([min, max]) => setNewActivity({ ...newActivity, levelMin: min, levelMax: max })}
-                  min={1}
-                  max={8}
-                  step={1}
-                />
-              </div>
-
-              {/* Casual Open Toggle */}
-              <div className="p-4 rounded-lg bg-secondary space-y-4">
                 <div className="flex items-center justify-between">
+                  <Label>等級範圍</Label>
                   <div className="flex items-center gap-2">
-                    <span className={`w-2 h-2 rounded-full ${newActivity.isCasualOpen ? "bg-primary" : "bg-muted-foreground"}`} />
-                    <span className="font-medium">{newActivity.isCasualOpen ? "🟢 開放臨打" : "🔴 不開放臨打"}</span>
+                    <SkillLevelBadge level={newActivity.levelMin} size="sm" />
+                    <span className="text-muted-foreground">-</span>
+                    <SkillLevelBadge level={newActivity.levelMax} size="sm" />
                   </div>
-                  <Switch
-                    checked={newActivity.isCasualOpen}
-                    onCheckedChange={(checked) => setNewActivity({ ...newActivity, isCasualOpen: checked })}
-                  />
                 </div>
-                
-                {newActivity.isCasualOpen && (
-                  <div className="grid grid-cols-2 gap-3 pt-2 border-t border-border">
-                    <div className="space-y-1">
-                      <Label className="text-xs text-muted-foreground">臨打名額</Label>
-                      <Input
-                        type="number"
-                        min={1}
-                        max={10}
-                        value={newActivity.casualSlots}
-                        onChange={(e) => setNewActivity({ ...newActivity, casualSlots: Number(e.target.value) })}
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-xs text-muted-foreground">臨打費用</Label>
-                      <div className="relative">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">$</span>
-                        <Input
-                          type="number"
-                          className="pl-7"
-                          min={0}
-                          value={newActivity.casualFee}
-                          onChange={(e) => setNewActivity({ ...newActivity, casualFee: Number(e.target.value) })}
-                        />
-                      </div>
-                    </div>
+                <div className="pt-2">
+                  <Slider
+                    value={[newActivity.levelMin, newActivity.levelMax]}
+                    onValueChange={([min, max]) => setNewActivity({ ...newActivity, levelMin: min, levelMax: max })}
+                    min={1}
+                    max={8}
+                    step={1}
+                  />
+                  <div className="flex justify-between text-xs text-muted-foreground mt-2">
+                    <span>L1 初學</span>
+                    <span>L8 專業</span>
                   </div>
-                )}
+                </div>
               </div>
 
               {/* Description */}
@@ -667,12 +627,6 @@ export default function Activities() {
               <h3 className="text-lg font-semibold text-foreground mb-2">{newActivity.title}</h3>
               <div className="flex items-center justify-center gap-2 mb-4">
                 <SportBadge sport={newActivity.sport} size="sm" />
-                {newActivity.isCasualOpen && (
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary">
-                    <span className="w-1.5 h-1.5 rounded-full bg-primary" />
-                    開放臨打
-                  </span>
-                )}
               </div>
               <div className="text-sm text-muted-foreground space-y-1 mb-6">
                 <div className="flex items-center justify-center gap-2">
