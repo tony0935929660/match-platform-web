@@ -9,11 +9,13 @@ import ActivityDetail from "./pages/ActivityDetail";
 import MyActivities from "./pages/MyActivities";
 import Profile from "./pages/Profile";
 import ClubDashboard from "./pages/ClubDashboard";
+import ClubNew from "./pages/ClubNew";
 import ClubNewActivity from "./pages/ClubNewActivity";
 import ClubActivities from "./pages/ClubActivities";
 import ClubMembers from "./pages/ClubMembers";
 import ClubPayments from "./pages/ClubPayments";
 import ClubScores from "./pages/ClubScores";
+import CourseNew from "./pages/CourseNew";
 import AdminDashboard from "./pages/AdminDashboard";
 import Sitemap from "./pages/Sitemap";
 import NotFound from "./pages/NotFound";
@@ -33,11 +35,13 @@ const App = () => (
           <Route path="/my-activities" element={<MyActivities />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/club" element={<ClubDashboard />} />
+          <Route path="/club/new" element={<ClubNew />} />
           <Route path="/club/new-activity" element={<ClubNewActivity />} />
           <Route path="/club/activities" element={<ClubActivities />} />
           <Route path="/club/members" element={<ClubMembers />} />
           <Route path="/club/payments" element={<ClubPayments />} />
           <Route path="/club/scores" element={<ClubScores />} />
+          <Route path="/course/new" element={<CourseNew />} />
           <Route path="/admin" element={<AdminDashboard />} />
           <Route path="/sitemap" element={<Sitemap />} />
           <Route path="*" element={<NotFound />} />
