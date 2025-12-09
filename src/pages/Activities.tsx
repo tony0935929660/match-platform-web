@@ -4,12 +4,18 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SportBadge, SportType, sportConfig } from "@/components/ui/SportBadge";
 import { ActivityCard } from "@/components/ui/ActivityCard";
+import { SkillLevelBadge } from "@/components/ui/SkillLevelBadge";
 import { 
   Search, 
   SlidersHorizontal, 
   MapPin, 
   Calendar,
-  X
+  X,
+  Plus,
+  Clock,
+  Users,
+  DollarSign,
+  CheckCircle
 } from "lucide-react";
 import {
   Select,
@@ -25,9 +31,19 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
+import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
+import { toast } from "@/hooks/use-toast";
 
 const sportTypes: SportType[] = ["badminton", "tennis", "basketball", "volleyball", "table-tennis", "soccer"];
 
@@ -136,6 +152,27 @@ export default function Activities() {
   const [casualOnly, setCasualOnly] = useState(false);
   const [levelRange, setLevelRange] = useState([1, 8]);
   const [searchQuery, setSearchQuery] = useState("");
+  
+  // Create Activity Dialog State
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [createStep, setCreateStep] = useState<"form" | "success">("form");
+  const [newActivity, setNewActivity] = useState({
+    title: "",
+    sport: "badminton" as SportType,
+    date: "",
+    startTime: "",
+    endTime: "",
+    location: "",
+    address: "",
+    description: "",
+    maxSlots: 8,
+    price: 150,
+    levelMin: 3,
+    levelMax: 5,
+    isCasualOpen: true,
+    casualSlots: 2,
+    casualFee: 180,
+  });
 
   const filteredActivities = mockActivities.filter((activity) => {
     if (selectedSport !== "all" && activity.sport !== selectedSport) return false;
@@ -153,13 +190,62 @@ export default function Activities() {
 
   const hasActiveFilters = selectedSport !== "all" || casualOnly || levelRange[0] !== 1 || levelRange[1] !== 8;
 
+  const handleOpenCreate = () => {
+    setShowCreateDialog(true);
+    setCreateStep("form");
+    setNewActivity({
+      title: "",
+      sport: "badminton",
+      date: "",
+      startTime: "",
+      endTime: "",
+      location: "",
+      address: "",
+      description: "",
+      maxSlots: 8,
+      price: 150,
+      levelMin: 3,
+      levelMax: 5,
+      isCasualOpen: true,
+      casualSlots: 2,
+      casualFee: 180,
+    });
+  };
+
+  const handleCreateActivity = () => {
+    if (!newActivity.title || !newActivity.date || !newActivity.location) {
+      toast({
+        title: "請填寫必要欄位",
+        description: "活動名稱、日期和地點為必填",
+        variant: "destructive",
+      });
+      return;
+    }
+    setCreateStep("success");
+    toast({
+      title: "活動建立成功！",
+      description: "你的活動已成功建立，等待球友報名中",
+    });
+  };
+
+  const handleCloseCreate = () => {
+    setShowCreateDialog(false);
+    setCreateStep("form");
+  };
+
   return (
     <MainLayout>
       <div className="container py-6 md:py-8">
         {/* Header */}
-        <div className="mb-6">
-          <h1 className="text-2xl md:text-3xl font-bold text-foreground">找活動</h1>
-          <p className="text-muted-foreground mt-1">探索附近的運動揪團活動</p>
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h1 className="text-2xl md:text-3xl font-bold text-foreground">找活動</h1>
+            <p className="text-muted-foreground mt-1">探索附近的運動揪團活動</p>
+          </div>
+          <Button className="gap-2" onClick={handleOpenCreate}>
+            <Plus className="h-4 w-4" />
+            開新活動
+          </Button>
         </div>
 
         {/* Search & Filters */}
@@ -353,6 +439,263 @@ export default function Activities() {
           </div>
         )}
       </div>
+
+      {/* Create Activity Dialog */}
+      <Dialog open={showCreateDialog} onOpenChange={handleCloseCreate}>
+        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              {createStep === "form" ? "開新活動" : "活動建立成功"}
+            </DialogTitle>
+            <DialogDescription>
+              {createStep === "form" ? "填寫活動資訊，開始揪團吧！" : "你的活動已成功建立"}
+            </DialogDescription>
+          </DialogHeader>
+
+          {createStep === "form" && (
+            <div className="space-y-5 py-4">
+              {/* Sport Type Selection */}
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">運動類型</Label>
+                <div className="flex flex-wrap gap-2">
+                  {sportTypes.map((sport) => (
+                    <Button
+                      key={sport}
+                      type="button"
+                      variant={newActivity.sport === sport ? "default" : "outline"}
+                      size="sm"
+                      className="gap-1"
+                      onClick={() => setNewActivity({ ...newActivity, sport })}
+                    >
+                      <span>{sportConfig[sport].emoji}</span>
+                      <span>{sportConfig[sport].label}</span>
+                    </Button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Activity Title */}
+              <div className="space-y-2">
+                <Label htmlFor="title">活動名稱 *</Label>
+                <Input
+                  id="title"
+                  placeholder="例：週三羽球交流賽"
+                  value={newActivity.title}
+                  onChange={(e) => setNewActivity({ ...newActivity, title: e.target.value })}
+                />
+              </div>
+
+              {/* Date & Time */}
+              <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-2">
+                  <Label htmlFor="date">日期 *</Label>
+                  <div className="relative">
+                    <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="date"
+                      type="date"
+                      className="pl-10"
+                      value={newActivity.date}
+                      onChange={(e) => setNewActivity({ ...newActivity, date: e.target.value })}
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="startTime">開始時間</Label>
+                  <div className="relative">
+                    <Clock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="startTime"
+                      type="time"
+                      className="pl-10"
+                      value={newActivity.startTime}
+                      onChange={(e) => setNewActivity({ ...newActivity, startTime: e.target.value })}
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="endTime">結束時間</Label>
+                  <div className="relative">
+                    <Clock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="endTime"
+                      type="time"
+                      className="pl-10"
+                      value={newActivity.endTime}
+                      onChange={(e) => setNewActivity({ ...newActivity, endTime: e.target.value })}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Location */}
+              <div className="space-y-2">
+                <Label htmlFor="location">場地名稱 *</Label>
+                <div className="relative">
+                  <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="location"
+                    placeholder="例：台北市大安運動中心"
+                    className="pl-10"
+                    value={newActivity.location}
+                    onChange={(e) => setNewActivity({ ...newActivity, location: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              {/* Slots & Price */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="maxSlots">名額上限</Label>
+                  <div className="relative">
+                    <Users className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="maxSlots"
+                      type="number"
+                      className="pl-10"
+                      min={2}
+                      max={50}
+                      value={newActivity.maxSlots}
+                      onChange={(e) => setNewActivity({ ...newActivity, maxSlots: Number(e.target.value) })}
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="price">費用 (每人)</Label>
+                  <div className="relative">
+                    <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="price"
+                      type="number"
+                      className="pl-10"
+                      min={0}
+                      value={newActivity.price}
+                      onChange={(e) => setNewActivity({ ...newActivity, price: Number(e.target.value) })}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Level Range */}
+              <div className="space-y-3">
+                <Label>等級範圍</Label>
+                <div className="flex items-center gap-3">
+                  <SkillLevelBadge level={newActivity.levelMin} size="md" />
+                  <span className="text-muted-foreground">-</span>
+                  <SkillLevelBadge level={newActivity.levelMax} size="md" />
+                </div>
+                <Slider
+                  value={[newActivity.levelMin, newActivity.levelMax]}
+                  onValueChange={([min, max]) => setNewActivity({ ...newActivity, levelMin: min, levelMax: max })}
+                  min={1}
+                  max={8}
+                  step={1}
+                />
+              </div>
+
+              {/* Casual Open Toggle */}
+              <div className="p-4 rounded-lg bg-secondary space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className={`w-2 h-2 rounded-full ${newActivity.isCasualOpen ? "bg-primary" : "bg-muted-foreground"}`} />
+                    <span className="font-medium">{newActivity.isCasualOpen ? "🟢 開放臨打" : "🔴 不開放臨打"}</span>
+                  </div>
+                  <Switch
+                    checked={newActivity.isCasualOpen}
+                    onCheckedChange={(checked) => setNewActivity({ ...newActivity, isCasualOpen: checked })}
+                  />
+                </div>
+                
+                {newActivity.isCasualOpen && (
+                  <div className="grid grid-cols-2 gap-3 pt-2 border-t border-border">
+                    <div className="space-y-1">
+                      <Label className="text-xs text-muted-foreground">臨打名額</Label>
+                      <Input
+                        type="number"
+                        min={1}
+                        max={10}
+                        value={newActivity.casualSlots}
+                        onChange={(e) => setNewActivity({ ...newActivity, casualSlots: Number(e.target.value) })}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs text-muted-foreground">臨打費用</Label>
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">$</span>
+                        <Input
+                          type="number"
+                          className="pl-7"
+                          min={0}
+                          value={newActivity.casualFee}
+                          onChange={(e) => setNewActivity({ ...newActivity, casualFee: Number(e.target.value) })}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Description */}
+              <div className="space-y-2">
+                <Label htmlFor="description">活動說明</Label>
+                <Textarea
+                  id="description"
+                  placeholder="描述活動內容、注意事項..."
+                  rows={3}
+                  value={newActivity.description}
+                  onChange={(e) => setNewActivity({ ...newActivity, description: e.target.value })}
+                />
+              </div>
+
+              {/* Submit Button */}
+              <div className="flex gap-3 pt-2">
+                <Button variant="outline" className="flex-1" onClick={handleCloseCreate}>
+                  取消
+                </Button>
+                <Button className="flex-1" onClick={handleCreateActivity}>
+                  建立活動
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {createStep === "success" && (
+            <div className="py-8 text-center">
+              <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
+                <CheckCircle className="h-8 w-8 text-primary" />
+              </div>
+              <h3 className="text-lg font-semibold text-foreground mb-2">{newActivity.title}</h3>
+              <div className="flex items-center justify-center gap-2 mb-4">
+                <SportBadge sport={newActivity.sport} size="sm" />
+                {newActivity.isCasualOpen && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary">
+                    <span className="w-1.5 h-1.5 rounded-full bg-primary" />
+                    開放臨打
+                  </span>
+                )}
+              </div>
+              <div className="text-sm text-muted-foreground space-y-1 mb-6">
+                <div className="flex items-center justify-center gap-2">
+                  <Calendar className="h-4 w-4" />
+                  <span>{newActivity.date} {newActivity.startTime}-{newActivity.endTime}</span>
+                </div>
+                <div className="flex items-center justify-center gap-2">
+                  <MapPin className="h-4 w-4" />
+                  <span>{newActivity.location}</span>
+                </div>
+                <div className="flex items-center justify-center gap-2">
+                  <Users className="h-4 w-4" />
+                  <span>0/{newActivity.maxSlots} 人</span>
+                </div>
+              </div>
+              <p className="text-muted-foreground mb-6">等待球友報名中，記得準時出席喔！</p>
+              <Button className="w-full" onClick={handleCloseCreate}>
+                完成
+              </Button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </MainLayout>
   );
 }
