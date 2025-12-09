@@ -15,6 +15,7 @@ import ClubMembers from "./pages/ClubMembers";
 import ClubPayments from "./pages/ClubPayments";
 import ClubScores from "./pages/ClubScores";
 import AdminDashboard from "./pages/AdminDashboard";
+import Sitemap from "./pages/Sitemap";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -38,6 +39,7 @@ const App = () => (
           <Route path="/club/payments" element={<ClubPayments />} />
           <Route path="/club/scores" element={<ClubScores />} />
           <Route path="/admin" element={<AdminDashboard />} />
+          <Route path="/sitemap" element={<Sitemap />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
