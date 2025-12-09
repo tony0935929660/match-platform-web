@@ -2,16 +2,26 @@ import { cn } from "@/lib/utils";
 import { Link, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { 
-  Search, 
   Bell, 
   User, 
   Menu,
   Home,
   Calendar,
   Users,
-  Settings
+  Settings,
+  Plus,
+  UsersRound,
+  BookOpen,
+  LogOut
 } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useState } from "react";
 
 const navItems = [
@@ -24,6 +34,11 @@ const navItems = [
 export function Header() {
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
+  
+  const handleLogout = () => {
+    // TODO: Implement logout logic
+    console.log("Logout clicked");
+  };
   
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
@@ -60,18 +75,67 @@ export function Header() {
         
         {/* Actions */}
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon" className="hidden sm:flex">
-            <Search className="h-5 w-5" />
-          </Button>
+          {/* Create Buttons - Desktop */}
+          <div className="hidden lg:flex items-center gap-2">
+            <Link to="/club/new">
+              <Button variant="outline" size="sm" className="gap-1.5">
+                <UsersRound className="h-4 w-4" />
+                建立球團
+              </Button>
+            </Link>
+            <Link to="/course/new">
+              <Button variant="outline" size="sm" className="gap-1.5">
+                <BookOpen className="h-4 w-4" />
+                建立課程
+              </Button>
+            </Link>
+          </div>
+          
+          {/* New Activity Button */}
+          <Link to="/club/new-activity">
+            <Button variant="ghost" size="icon" className="hidden sm:flex">
+              <Plus className="h-5 w-5" />
+            </Button>
+          </Link>
+          
           <Button variant="ghost" size="icon" className="relative">
             <Bell className="h-5 w-5" />
             <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-destructive" />
           </Button>
-          <Link to="/profile">
-            <Button variant="ghost" size="icon" className="hidden sm:flex">
-              <User className="h-5 w-5" />
-            </Button>
-          </Link>
+          
+          {/* User Dropdown - Desktop */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="hidden sm:flex">
+                <User className="h-5 w-5" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuItem asChild>
+                <Link to="/profile" className="flex items-center gap-2 cursor-pointer">
+                  <User className="h-4 w-4" />
+                  會員中心
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link to="/club" className="flex items-center gap-2 cursor-pointer">
+                  <Users className="h-4 w-4" />
+                  球團管理
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link to="/admin" className="flex items-center gap-2 cursor-pointer">
+                  <Settings className="h-4 w-4" />
+                  管理後台
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={handleLogout} className="flex items-center gap-2 cursor-pointer text-destructive focus:text-destructive">
+                <LogOut className="h-4 w-4" />
+                登出
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           
           {/* Mobile Menu */}
           <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
@@ -102,7 +166,37 @@ export function Header() {
                     </Link>
                   );
                 })}
+                
                 <div className="h-px bg-border my-2" />
+                
+                {/* Create Actions - Mobile */}
+                <Link
+                  to="/club/new-activity"
+                  onClick={() => setMobileOpen(false)}
+                  className="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary"
+                >
+                  <Plus className="h-5 w-5" />
+                  開新活動
+                </Link>
+                <Link
+                  to="/club/new"
+                  onClick={() => setMobileOpen(false)}
+                  className="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary"
+                >
+                  <UsersRound className="h-5 w-5" />
+                  建立球團
+                </Link>
+                <Link
+                  to="/course/new"
+                  onClick={() => setMobileOpen(false)}
+                  className="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary"
+                >
+                  <BookOpen className="h-5 w-5" />
+                  建立課程
+                </Link>
+                
+                <div className="h-px bg-border my-2" />
+                
                 <Link
                   to="/profile"
                   onClick={() => setMobileOpen(false)}
@@ -119,6 +213,16 @@ export function Header() {
                   <Settings className="h-5 w-5" />
                   管理後台
                 </Link>
+                <button
+                  onClick={() => {
+                    handleLogout();
+                    setMobileOpen(false);
+                  }}
+                  className="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-destructive hover:bg-destructive/10 w-full text-left"
+                >
+                  <LogOut className="h-5 w-5" />
+                  登出
+                </button>
               </nav>
             </SheetContent>
           </Sheet>
