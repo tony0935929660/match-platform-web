@@ -40,6 +40,7 @@ export default function ClubNewActivity() {
     address: "",
     description: "",
     maxSlots: 8,
+    unlimitedSlots: false,
     price: 150,
     levelMin: 1,
     levelMax: 8,
@@ -119,7 +120,7 @@ export default function ClubNewActivity() {
                   </div>
                   <div className="flex items-center gap-2">
                     <Users className="h-4 w-4" />
-                    <span>0/{activity.maxSlots} 人</span>
+                    <span>{activity.unlimitedSlots ? "0 人（無上限）" : `0/${activity.maxSlots} 人`}</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <DollarSign className="h-4 w-4" />
@@ -148,6 +149,7 @@ export default function ClubNewActivity() {
                   address: "",
                   description: "",
                   maxSlots: 8,
+                  unlimitedSlots: false,
                   price: 150,
                   levelMin: 1,
                   levelMax: 8,
@@ -313,23 +315,38 @@ export default function ClubNewActivity() {
                 <CardDescription>設定活動的名額上限與費用</CardDescription>
               </CardHeader>
               <CardContent className="space-y-5">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="maxSlots">名額上限</Label>
-                    <div className="relative">
-                      <Users className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        id="maxSlots"
-                        type="number"
-                        className="pl-10"
-                        min={2}
-                        max={50}
-                        value={activity.maxSlots}
-                        onChange={(e) => setActivity({ ...activity, maxSlots: Number(e.target.value) })}
-                      />
-                    </div>
+                {/* Unlimited Slots Toggle */}
+                <div className="flex items-center justify-between p-3 rounded-lg border border-border">
+                  <div className="space-y-0.5">
+                    <Label htmlFor="unlimitedSlots" className="cursor-pointer">名額無上限</Label>
+                    <p className="text-sm text-muted-foreground">不限制報名人數</p>
                   </div>
-                  <div className="space-y-2">
+                  <Switch
+                    id="unlimitedSlots"
+                    checked={activity.unlimitedSlots}
+                    onCheckedChange={(checked) => setActivity({ ...activity, unlimitedSlots: checked })}
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  {!activity.unlimitedSlots && (
+                    <div className="space-y-2">
+                      <Label htmlFor="maxSlots">名額上限</Label>
+                      <div className="relative">
+                        <Users className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          id="maxSlots"
+                          type="number"
+                          className="pl-10"
+                          min={2}
+                          max={50}
+                          value={activity.maxSlots}
+                          onChange={(e) => setActivity({ ...activity, maxSlots: Number(e.target.value) })}
+                        />
+                      </div>
+                    </div>
+                  )}
+                  <div className={`space-y-2 ${activity.unlimitedSlots ? 'col-span-2' : ''}`}>
                     <Label htmlFor="price">費用 (每人)</Label>
                     <div className="relative">
                       <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
