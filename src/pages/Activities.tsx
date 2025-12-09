@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -148,10 +149,30 @@ const mockActivities = [
 ];
 
 export default function Activities() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [selectedSport, setSelectedSport] = useState<SportType | "all">("all");
   const [casualOnly, setCasualOnly] = useState(false);
   const [levelRange, setLevelRange] = useState([1, 8]);
   const [searchQuery, setSearchQuery] = useState("");
+
+  // Read sport from URL on mount
+  useEffect(() => {
+    const sportParam = searchParams.get("sport");
+    if (sportParam && sportTypes.includes(sportParam as SportType)) {
+      setSelectedSport(sportParam as SportType);
+    }
+  }, [searchParams]);
+
+  // Update URL when sport changes
+  const handleSportChange = (sport: SportType | "all") => {
+    setSelectedSport(sport);
+    if (sport === "all") {
+      searchParams.delete("sport");
+    } else {
+      searchParams.set("sport", sport);
+    }
+    setSearchParams(searchParams);
+  };
   
   // Create Activity Dialog State
   const [showCreateDialog, setShowCreateDialog] = useState(false);
@@ -179,7 +200,7 @@ export default function Activities() {
   });
 
   const clearFilters = () => {
-    setSelectedSport("all");
+    handleSportChange("all");
     setCasualOnly(false);
     setLevelRange([1, 8]);
     setSearchQuery("");
@@ -255,7 +276,7 @@ export default function Activities() {
           </div>
           
           <div className="flex gap-2">
-            <Select value={selectedSport} onValueChange={(v) => setSelectedSport(v as SportType | "all")}>
+            <Select value={selectedSport} onValueChange={(v) => handleSportChange(v as SportType | "all")}>
               <SelectTrigger className="w-[140px]">
                 <SelectValue placeholder="運動類型" />
               </SelectTrigger>
@@ -290,7 +311,7 @@ export default function Activities() {
                       <Button
                         variant={selectedSport === "all" ? "default" : "outline"}
                         size="sm"
-                        onClick={() => setSelectedSport("all")}
+                        onClick={() => handleSportChange("all")}
                       >
                         全部
                       </Button>
@@ -299,7 +320,7 @@ export default function Activities() {
                           key={sport}
                           variant={selectedSport === sport ? "default" : "outline"}
                           size="sm"
-                          onClick={() => setSelectedSport(sport)}
+                          onClick={() => handleSportChange(sport)}
                         >
                           {sportConfig[sport].emoji} {sportConfig[sport].label}
                         </Button>
@@ -351,7 +372,7 @@ export default function Activities() {
             variant={selectedSport === "all" ? "default" : "outline"}
             size="sm"
             className="rounded-full flex-shrink-0"
-            onClick={() => setSelectedSport("all")}
+            onClick={() => handleSportChange("all")}
           >
             全部
           </Button>
@@ -361,7 +382,7 @@ export default function Activities() {
               variant={selectedSport === sport ? "default" : "outline"}
               size="sm"
               className="rounded-full flex-shrink-0 gap-1"
-              onClick={() => setSelectedSport(sport)}
+              onClick={() => handleSportChange(sport)}
             >
               <span>{sportConfig[sport].emoji}</span>
               <span>{sportConfig[sport].label}</span>
@@ -378,7 +399,7 @@ export default function Activities() {
                 variant="secondary"
                 size="sm"
                 className="h-7 gap-1"
-                onClick={() => setSelectedSport("all")}
+                onClick={() => handleSportChange("all")}
               >
                 {sportConfig[selectedSport].emoji} {sportConfig[selectedSport].label}
                 <X className="h-3 w-3" />
