@@ -27,8 +27,10 @@ import { useState } from "react";
 const navItems = [
   { label: "首頁", href: "/", icon: Home },
   { label: "找活動", href: "/activities", icon: Calendar },
+  { label: "找課程", href: "/courses", icon: BookOpen },
   { label: "我的活動", href: "/my-activities", icon: Calendar },
   { label: "球團管理", href: "/club", icon: Users },
+  { label: "課程管理", href: "/course", icon: BookOpen },
 ];
 
 export function Header() {
@@ -122,6 +124,12 @@ export function Header() {
                 <Link to="/club" className="flex items-center gap-2 cursor-pointer">
                   <Users className="h-4 w-4" />
                   球團管理
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link to="/course" className="flex items-center gap-2 cursor-pointer">
+                  <BookOpen className="h-4 w-4" />
+                  課程管理
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
