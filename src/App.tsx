@@ -16,6 +16,10 @@ import ClubMembers from "./pages/ClubMembers";
 import ClubPayments from "./pages/ClubPayments";
 import ClubScores from "./pages/ClubScores";
 import CourseNew from "./pages/CourseNew";
+import CourseDashboard from "./pages/CourseDashboard";
+import CourseClasses from "./pages/CourseClasses";
+import CourseStudents from "./pages/CourseStudents";
+import CoursePayments from "./pages/CoursePayments";
 import AdminDashboard from "./pages/AdminDashboard";
 import Sitemap from "./pages/Sitemap";
 import NotFound from "./pages/NotFound";
@@ -41,7 +45,11 @@ const App = () => (
           <Route path="/club/members" element={<ClubMembers />} />
           <Route path="/club/payments" element={<ClubPayments />} />
           <Route path="/club/scores" element={<ClubScores />} />
+          <Route path="/course" element={<CourseDashboard />} />
           <Route path="/course/new" element={<CourseNew />} />
+          <Route path="/course/classes" element={<CourseClasses />} />
+          <Route path="/course/students" element={<CourseStudents />} />
+          <Route path="/course/payments" element={<CoursePayments />} />
           <Route path="/admin" element={<AdminDashboard />} />
           <Route path="/sitemap" element={<Sitemap />} />
           <Route path="*" element={<NotFound />} />
