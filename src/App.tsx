@@ -9,6 +9,7 @@ import ActivityDetail from "./pages/ActivityDetail";
 import MyActivities from "./pages/MyActivities";
 import Profile from "./pages/Profile";
 import ClubDashboard from "./pages/ClubDashboard";
+import ClubNewActivity from "./pages/ClubNewActivity";
 import AdminDashboard from "./pages/AdminDashboard";
 import NotFound from "./pages/NotFound";
 
@@ -27,6 +28,7 @@ const App = () => (
           <Route path="/my-activities" element={<MyActivities />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/club" element={<ClubDashboard />} />
+          <Route path="/club/new-activity" element={<ClubNewActivity />} />
           <Route path="/admin" element={<AdminDashboard />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
