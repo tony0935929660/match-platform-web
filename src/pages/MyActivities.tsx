@@ -16,13 +16,13 @@ import {
   XCircle,
   AlertCircle
 } from "lucide-react";
-import { Link } from "react-router-dom";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Link } from "react-router-dom";
 
 const myCreatedActivities = [
   {
@@ -107,19 +107,10 @@ export default function MyActivities() {
     <MainLayout>
       <div className="container py-6 md:py-8">
         {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-foreground">我的活動</h1>
-            <p className="text-muted-foreground mt-1">管理你參與的所有活動</p>
-          </div>
-          <Link to="/club/new-activity">
-            <Button className="gap-2">
-              <Plus className="h-4 w-4" />
-              開新活動
-            </Button>
-          </Link>
+        <div className="mb-6">
+          <h1 className="text-2xl md:text-3xl font-bold text-foreground">我的活動</h1>
+          <p className="text-muted-foreground mt-1">管理你參與的所有活動</p>
         </div>
-
         <Tabs defaultValue="created" className="space-y-6">
           <TabsList className="grid w-full grid-cols-3 lg:w-auto lg:inline-grid">
             <TabsTrigger value="created" className="gap-2">
