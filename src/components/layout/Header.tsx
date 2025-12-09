@@ -93,8 +93,9 @@ export function Header() {
           
           {/* New Activity Button */}
           <Link to="/club/new-activity">
-            <Button variant="ghost" size="icon" className="hidden sm:flex">
-              <Plus className="h-5 w-5" />
+            <Button variant="ghost" size="sm" className="hidden sm:flex gap-1.5">
+              <Plus className="h-4 w-4" />
+              開團
             </Button>
           </Link>
           
