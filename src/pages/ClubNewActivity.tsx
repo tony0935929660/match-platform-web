@@ -49,11 +49,12 @@ export default function ClubNewActivity() {
     casualSlots: 2,
     casualFee: 180,
     needsApproval: false,
+    casualWaitlistEnabled: false,
+    casualWaitlistMinutes: 60,
     // Club-specific: Scoring mode
     isScoringMode: false,
-    // Club-specific: Waitlist
+    // Club-specific: Waitlist (for club members only)
     waitlistEnabled: true,
-    waitlistOpenTime: "18:00",
   });
 
   const handleSubmit = () => {
@@ -157,9 +158,10 @@ export default function ClubNewActivity() {
                   casualSlots: 2,
                   casualFee: 180,
                   needsApproval: false,
+                  casualWaitlistEnabled: false,
+                  casualWaitlistMinutes: 60,
                   isScoringMode: false,
                   waitlistEnabled: true,
-                  waitlistOpenTime: "18:00",
                 });
               }}>
                 再開一團
@@ -448,6 +450,42 @@ export default function ClubNewActivity() {
                       臨打需要審核
                     </Label>
                   </div>
+
+                  {/* Casual Waitlist Timing */}
+                  <div className="pt-4 border-t border-border space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-0.5">
+                        <Label htmlFor="casualWaitlistEnabled" className="cursor-pointer">臨打候補時間</Label>
+                        <p className="text-sm text-muted-foreground">設定活動開始前多久才開放臨打報名</p>
+                      </div>
+                      <Switch
+                        id="casualWaitlistEnabled"
+                        checked={activity.casualWaitlistEnabled}
+                        onCheckedChange={(checked) => setActivity({ ...activity, casualWaitlistEnabled: checked })}
+                      />
+                    </div>
+                    
+                    {activity.casualWaitlistEnabled && (
+                      <div className="pl-4 border-l-2 border-primary/20 space-y-2">
+                        <Label htmlFor="casualWaitlistMinutes">開放報名前時間（分鐘）</Label>
+                        <div className="flex items-center gap-3">
+                          <Input
+                            id="casualWaitlistMinutes"
+                            type="number"
+                            className="w-24"
+                            min={15}
+                            max={1440}
+                            value={activity.casualWaitlistMinutes}
+                            onChange={(e) => setActivity({ ...activity, casualWaitlistMinutes: Number(e.target.value) })}
+                          />
+                          <span className="text-sm text-muted-foreground">
+                            活動開始前 {activity.casualWaitlistMinutes} 分鐘開放臨打報名
+                          </span>
+                        </div>
+                        <p className="text-xs text-muted-foreground">例如設定 60 分鐘，則活動開始前 1 小時才開放臨打報名</p>
+                      </div>
+                    )}
+                  </div>
                 </CardContent>
               )}
             </Card>
@@ -471,22 +509,6 @@ export default function ClubNewActivity() {
                   />
                 </div>
 
-                {activity.waitlistEnabled && (
-                  <div className="space-y-2 pl-4 border-l-2 border-primary/20">
-                    <Label htmlFor="waitlistOpenTime">候補開啟時間</Label>
-                    <div className="relative w-40">
-                      <Clock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        id="waitlistOpenTime"
-                        type="time"
-                        className="pl-10"
-                        value={activity.waitlistOpenTime}
-                        onChange={(e) => setActivity({ ...activity, waitlistOpenTime: e.target.value })}
-                      />
-                    </div>
-                    <p className="text-xs text-muted-foreground">活動當天此時間自動開啟候補遞補</p>
-                  </div>
-                )}
 
                 {/* Scoring Mode */}
                 <div className="flex items-center justify-between p-4 rounded-lg bg-secondary">
