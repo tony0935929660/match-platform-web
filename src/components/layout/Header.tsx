@@ -94,7 +94,7 @@ export function Header() {
           </div>
           
           {/* New Activity Button */}
-          <Link to="/club/new-activity">
+          <Link to="/activities/new">
             <Button variant="ghost" size="sm" className="hidden sm:flex gap-1.5">
               <Plus className="h-4 w-4" />
               開團
@@ -180,7 +180,7 @@ export function Header() {
                 
                 {/* Create Actions - Mobile */}
                 <Link
-                  to="/club/new-activity"
+                  to="/activities/new"
                   onClick={() => setMobileOpen(false)}
                   className="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary"
                 >
