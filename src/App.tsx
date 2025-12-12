@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
 import Activities from "./pages/Activities";
 import ActivityDetail from "./pages/ActivityDetail";
+import NewActivity from "./pages/NewActivity";
 import MyActivities from "./pages/MyActivities";
 import Profile from "./pages/Profile";
 import ClubDashboard from "./pages/ClubDashboard";
@@ -37,6 +38,7 @@ const App = () => (
         <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/activities" element={<Activities />} />
+          <Route path="/activities/new" element={<NewActivity />} />
           <Route path="/activities/:id" element={<ActivityDetail />} />
           <Route path="/my-activities" element={<MyActivities />} />
           <Route path="/profile" element={<Profile />} />
