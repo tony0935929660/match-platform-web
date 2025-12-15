@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
-import { Users, Trophy, MapPin, Phone, Mail, Globe } from "lucide-react";
+import { Users, MapPin, Phone, Mail, Globe } from "lucide-react";
 
 const sportTypes = [
   { value: "badminton", label: "羽球" },
@@ -33,7 +33,6 @@ const ClubNew = () => {
     contactPhone: "",
     contactEmail: "",
     website: "",
-    memberLimit: "",
   });
 
   const handleChange = (field: string, value: string) => {
@@ -121,19 +120,6 @@ const ClubNew = () => {
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="memberLimit" className="flex items-center gap-2">
-                    <Trophy className="h-4 w-4 text-muted-foreground" />
-                    人數上限
-                  </Label>
-                  <Input
-                    id="memberLimit"
-                    type="number"
-                    placeholder="例如：50"
-                    value={formData.memberLimit}
-                    onChange={(e) => handleChange("memberLimit", e.target.value)}
-                  />
-                </div>
               </div>
 
               {/* Contact Info */}
