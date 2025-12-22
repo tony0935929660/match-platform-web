@@ -308,8 +308,8 @@ export default function Index() {
                     瀏覽活動
                   </Button>
                 </Link>
-                <Link to="/club">
-                  <Button size="lg" variant="outline" className="font-semibold border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/10">
+                <Link to="/club/new">
+                  <Button size="lg" variant="secondary" className="font-semibold bg-primary-foreground/20 text-primary-foreground border border-primary-foreground/30 hover:bg-primary-foreground/30">
                     建立球團
                   </Button>
                 </Link>
