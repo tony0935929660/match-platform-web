@@ -3,12 +3,15 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { AuthProvider } from "@/contexts/AuthContext";
 import Index from "./pages/Index";
 import Activities from "./pages/Activities";
 import ActivityDetail from "./pages/ActivityDetail";
 import NewActivity from "./pages/NewActivity";
 import MyActivities from "./pages/MyActivities";
 import Profile from "./pages/Profile";
+import Login from "./pages/Login";
+import LineCallback from "./pages/LineCallback";
 import ClubDashboard from "./pages/ClubDashboard";
 import ClubNew from "./pages/ClubNew";
 import ClubNewActivity from "./pages/ClubNewActivity";
@@ -31,37 +34,41 @@ const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          <Route path="/activities" element={<Activities />} />
-          <Route path="/activities/new" element={<NewActivity />} />
-          <Route path="/activities/:id" element={<ActivityDetail />} />
-          <Route path="/my-activities" element={<MyActivities />} />
-          <Route path="/profile" element={<Profile />} />
-          <Route path="/club" element={<ClubDashboard />} />
-          <Route path="/club/new" element={<ClubNew />} />
-          <Route path="/club/new-activity" element={<ClubNewActivity />} />
-          <Route path="/club/activities" element={<ClubActivities />} />
-          <Route path="/club/members" element={<ClubMembers />} />
-          <Route path="/club/payments" element={<ClubPayments />} />
-          <Route path="/club/scores" element={<ClubScores />} />
-          <Route path="/courses" element={<Courses />} />
-          <Route path="/courses/:id" element={<CourseDetail />} />
-          <Route path="/course" element={<CourseDashboard />} />
-          <Route path="/course/new" element={<CourseNew />} />
-          <Route path="/course/classes" element={<CourseClasses />} />
-          <Route path="/course/students" element={<CourseStudents />} />
-          <Route path="/course/payments" element={<CoursePayments />} />
-          <Route path="/admin" element={<AdminDashboard />} />
-          <Route path="/sitemap" element={<Sitemap />} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
-    </TooltipProvider>
+    <AuthProvider>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <Routes>
+            <Route path="/" element={<Index />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/auth/line/callback" element={<LineCallback />} />
+            <Route path="/activities" element={<Activities />} />
+            <Route path="/activities/new" element={<NewActivity />} />
+            <Route path="/activities/:id" element={<ActivityDetail />} />
+            <Route path="/my-activities" element={<MyActivities />} />
+            <Route path="/profile" element={<Profile />} />
+            <Route path="/club" element={<ClubDashboard />} />
+            <Route path="/club/new" element={<ClubNew />} />
+            <Route path="/club/new-activity" element={<ClubNewActivity />} />
+            <Route path="/club/activities" element={<ClubActivities />} />
+            <Route path="/club/members" element={<ClubMembers />} />
+            <Route path="/club/payments" element={<ClubPayments />} />
+            <Route path="/club/scores" element={<ClubScores />} />
+            <Route path="/courses" element={<Courses />} />
+            <Route path="/courses/:id" element={<CourseDetail />} />
+            <Route path="/course" element={<CourseDashboard />} />
+            <Route path="/course/new" element={<CourseNew />} />
+            <Route path="/course/classes" element={<CourseClasses />} />
+            <Route path="/course/students" element={<CourseStudents />} />
+            <Route path="/course/payments" element={<CoursePayments />} />
+            <Route path="/admin" element={<AdminDashboard />} />
+            <Route path="/sitemap" element={<Sitemap />} />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </BrowserRouter>
+      </TooltipProvider>
+    </AuthProvider>
   </QueryClientProvider>
 );
 

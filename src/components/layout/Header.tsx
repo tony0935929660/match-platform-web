@@ -12,7 +12,8 @@ import {
   Plus,
   UsersRound,
   BookOpen,
-  LogOut
+  LogOut,
+  LogIn
 } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import {
@@ -22,7 +23,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useState } from "react";
+import { useAuth } from "@/contexts/AuthContext";
 
 const navItems = [
   { label: "首頁", href: "/", icon: Home },
@@ -36,10 +39,10 @@ const navItems = [
 export function Header() {
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { user, isAuthenticated, logout } = useAuth();
   
   const handleLogout = () => {
-    // TODO: Implement logout logic
-    console.log("Logout clicked");
+    logout();
   };
   
   return (
@@ -107,44 +110,62 @@ export function Header() {
           </Button>
           
           {/* User Dropdown - Desktop */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="hidden sm:flex">
-                <User className="h-5 w-5" />
+          {isAuthenticated ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="hidden sm:flex">
+                  <Avatar className="h-8 w-8">
+                    <AvatarImage src={user?.pictureUrl} alt={user?.displayName} />
+                    <AvatarFallback>
+                      {user?.displayName?.charAt(0) || <User className="h-4 w-4" />}
+                    </AvatarFallback>
+                  </Avatar>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <div className="px-2 py-1.5 text-sm font-medium">
+                  {user?.displayName}
+                </div>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <Link to="/profile" className="flex items-center gap-2 cursor-pointer">
+                    <User className="h-4 w-4" />
+                    會員中心
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link to="/club" className="flex items-center gap-2 cursor-pointer">
+                    <Users className="h-4 w-4" />
+                    球團管理
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link to="/course" className="flex items-center gap-2 cursor-pointer">
+                    <BookOpen className="h-4 w-4" />
+                    課程管理
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link to="/admin" className="flex items-center gap-2 cursor-pointer">
+                    <Settings className="h-4 w-4" />
+                    管理後台
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleLogout} className="flex items-center gap-2 cursor-pointer text-destructive focus:text-destructive">
+                  <LogOut className="h-4 w-4" />
+                  登出
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : (
+            <Link to="/login" className="hidden sm:block">
+              <Button variant="default" size="sm" className="gap-1.5">
+                <LogIn className="h-4 w-4" />
+                登入
               </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuItem asChild>
-                <Link to="/profile" className="flex items-center gap-2 cursor-pointer">
-                  <User className="h-4 w-4" />
-                  會員中心
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link to="/club" className="flex items-center gap-2 cursor-pointer">
-                  <Users className="h-4 w-4" />
-                  球團管理
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link to="/course" className="flex items-center gap-2 cursor-pointer">
-                  <BookOpen className="h-4 w-4" />
-                  課程管理
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link to="/admin" className="flex items-center gap-2 cursor-pointer">
-                  <Settings className="h-4 w-4" />
-                  管理後台
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={handleLogout} className="flex items-center gap-2 cursor-pointer text-destructive focus:text-destructive">
-                <LogOut className="h-4 w-4" />
-                登出
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+            </Link>
+          )}
           
           {/* Mobile Menu */}
           <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
@@ -206,32 +227,54 @@ export function Header() {
                 
                 <div className="h-px bg-border my-2" />
                 
-                <Link
-                  to="/profile"
-                  onClick={() => setMobileOpen(false)}
-                  className="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary"
-                >
-                  <User className="h-5 w-5" />
-                  會員中心
-                </Link>
-                <Link
-                  to="/admin"
-                  onClick={() => setMobileOpen(false)}
-                  className="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary"
-                >
-                  <Settings className="h-5 w-5" />
-                  管理後台
-                </Link>
-                <button
-                  onClick={() => {
-                    handleLogout();
-                    setMobileOpen(false);
-                  }}
-                  className="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-destructive hover:bg-destructive/10 w-full text-left"
-                >
-                  <LogOut className="h-5 w-5" />
-                  登出
-                </button>
+                {isAuthenticated ? (
+                  <>
+                    {user && (
+                      <div className="flex items-center gap-3 px-4 py-3">
+                        <Avatar className="h-8 w-8">
+                          <AvatarImage src={user.pictureUrl} alt={user.displayName} />
+                          <AvatarFallback>{user.displayName?.charAt(0)}</AvatarFallback>
+                        </Avatar>
+                        <span className="text-sm font-medium">{user.displayName}</span>
+                      </div>
+                    )}
+                    <Link
+                      to="/profile"
+                      onClick={() => setMobileOpen(false)}
+                      className="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary"
+                    >
+                      <User className="h-5 w-5" />
+                      會員中心
+                    </Link>
+                    <Link
+                      to="/admin"
+                      onClick={() => setMobileOpen(false)}
+                      className="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary"
+                    >
+                      <Settings className="h-5 w-5" />
+                      管理後台
+                    </Link>
+                    <button
+                      onClick={() => {
+                        handleLogout();
+                        setMobileOpen(false);
+                      }}
+                      className="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-destructive hover:bg-destructive/10 w-full text-left"
+                    >
+                      <LogOut className="h-5 w-5" />
+                      登出
+                    </button>
+                  </>
+                ) : (
+                  <Link
+                    to="/login"
+                    onClick={() => setMobileOpen(false)}
+                    className="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium bg-primary text-primary-foreground hover:bg-primary/90"
+                  >
+                    <LogIn className="h-5 w-5" />
+                    登入
+                  </Link>
+                )}
               </nav>
             </SheetContent>
           </Sheet>
