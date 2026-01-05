@@ -19,15 +19,26 @@ export interface LineProfile {
   statusMessage?: string;
 }
 
+export interface BackendUser {
+  id: number;
+  lineId: string;
+  lineName: string;
+  name: string;
+  phone?: string | null;
+  email?: string | null;
+  pictureUrl?: string | null;
+  isAdmin: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface BackendAuthResponse {
-  token: string;
-  user: {
-    id: number;
-    lineUserId: string;
-    name: string;
-    email?: string;
-    pictureUrl?: string;
-    isAdmin: boolean;
+  success: boolean;
+  message: string;
+  data: {
+    token: string;
+    user: BackendUser;
+    merchant?: unknown;
   };
 }
 
@@ -113,18 +124,24 @@ export async function loginWithBackend(accessToken: string): Promise<BackendAuth
     throw new Error(`${errorMessage} (${response.status})`);
   }
 
-  return response.json();
+  const data = await response.json();
+  console.log("Backend API response:", JSON.stringify(data, null, 2));
+  return data;
 }
 
 /**
  * 從後端回應建立應用程式用戶
  */
 export function createUserFromBackendResponse(response: BackendAuthResponse): User {
+  const userData = response.data.user;
+  
+  console.log("Creating user from response:", userData);
+  
   return {
-    id: response.user.lineUserId,
-    displayName: response.user.name,
-    pictureUrl: response.user.pictureUrl,
-    email: response.user.email,
+    id: userData.lineId || String(userData.id),
+    displayName: userData.name || userData.lineName,
+    pictureUrl: userData.pictureUrl || undefined,
+    email: userData.email || undefined,
   };
 }
 
@@ -146,11 +163,15 @@ export async function processLineCallback(code: string): Promise<{ user: User; t
   console.log("Step 3: Calling backend API...");
   const backendResponse = await loginWithBackend(tokenResponse.access_token);
   
+  if (!backendResponse.success) {
+    throw new Error(backendResponse.message || "登入失敗");
+  }
+  
   // 4. 建立應用程式用戶
   const user = createUserFromBackendResponse(backendResponse);
   
   return {
     user,
-    token: backendResponse.token,
+    token: backendResponse.data.token,
   };
 }

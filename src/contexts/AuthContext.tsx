@@ -52,6 +52,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // 當用戶資料變更時，同步到 localStorage
   useEffect(() => {
+    console.log("User state changed:", user);
     if (user) {
       localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(user));
     } else {
@@ -61,6 +62,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // 當 Token 變更時，同步到 localStorage
   useEffect(() => {
+    console.log("Token state changed:", token ? "Token set" : "No token");
     if (token) {
       localStorage.setItem(TOKEN_STORAGE_KEY, token);
     } else {

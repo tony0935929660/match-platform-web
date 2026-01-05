@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Button } from "@/components/ui/button";
@@ -6,6 +6,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Slider } from "@/components/ui/slider";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { SportBadge, SportType, sportConfig } from "@/components/ui/SportBadge";
 import { SkillLevelBadge } from "@/components/ui/SkillLevelBadge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,19 +25,50 @@ import {
   Users,
   DollarSign,
   CheckCircle,
+  Loader2,
 } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
+import { getSports, getAreas, SportEnum, AreaEnum } from "@/services/enumApi";
+import { createMatch, CreateMatchRequest } from "@/services/matchApi";
 
-const sportTypes: SportType[] = ["badminton", "tennis", "basketball", "volleyball", "table-tennis", "soccer"];
+// 運動類型 enum value 對應前端 SportType 的映射
+const sportValueToType: Record<number, SportType> = {
+  1: "badminton",
+  2: "tennis",
+  // 以下可以之後擴充
+  // 3: "basketball",
+  // 4: "volleyball",
+  // 5: "table-tennis",
+  // 6: "soccer",
+};
+
+const sportTypeToValue: Record<string, number> = {
+  "badminton": 1,
+  "tennis": 2,
+  // 以下可以之後擴充
+  // "basketball": 3,
+  // "volleyball": 4,
+  // "table-tennis": 5,
+  // "soccer": 6,
+};
 
 export default function NewActivity() {
   const navigate = useNavigate();
+  const { token } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  
+  // Enum 資料
+  const [sports, setSports] = useState<SportEnum[]>([]);
+  const [areas, setAreas] = useState<AreaEnum[]>([]);
   
   const [activity, setActivity] = useState({
     title: "",
-    sport: "badminton" as SportType,
+    sport: 1, // 預設羽球
+    sportType: "badminton" as SportType, // 前端顯示用
+    area: 0,
     date: "",
     startTime: "",
     endTime: "",
@@ -43,7 +81,61 @@ export default function NewActivity() {
     levelMax: 8,
   });
 
-  const handleSubmit = () => {
+  // 載入 Enum 資料
+  useEffect(() => {
+    async function loadEnums() {
+      try {
+        const [sportsData, areasData] = await Promise.all([
+          getSports(),
+          getAreas(),
+        ]);
+        setSports(sportsData);
+        setAreas(areasData);
+        
+        // 設定預設值
+        if (sportsData.length > 0) {
+          const defaultSport = sportsData[0];
+          const grades = defaultSport.validGrades || [];
+          const minGrade = grades.length > 0 ? Math.min(...grades) : 1;
+          const maxGrade = grades.length > 0 ? Math.max(...grades) : 8;
+          setActivity(prev => ({
+            ...prev,
+            sport: defaultSport.value,
+            sportType: sportValueToType[defaultSport.value] || "badminton",
+            levelMin: minGrade,
+            levelMax: maxGrade,
+          }));
+        }
+      } catch (err) {
+        console.error("Failed to load enums:", err);
+        toast({
+          title: "載入失敗",
+          description: "無法載入運動類型或地區資料",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    loadEnums();
+  }, []);
+
+  const handleSportChange = (sportValue: number) => {
+    const selectedSport = sports.find(s => s.value === sportValue);
+    const grades = selectedSport?.validGrades || [];
+    const minGrade = grades.length > 0 ? Math.min(...grades) : 1;
+    const maxGrade = grades.length > 0 ? Math.max(...grades) : 8;
+    
+    setActivity({
+      ...activity,
+      sport: sportValue,
+      sportType: sportValueToType[sportValue] || "badminton",
+      levelMin: minGrade,
+      levelMax: maxGrade,
+    });
+  };
+
+  const handleSubmit = async () => {
     if (!activity.title || !activity.date || !activity.location) {
       toast({
         title: "請填寫必要欄位",
@@ -53,17 +145,76 @@ export default function NewActivity() {
       return;
     }
 
+    if (!activity.area) {
+      toast({
+        title: "請選擇地區",
+        description: "請選擇活動所在地區",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!token) {
+      toast({
+        title: "請先登入",
+        description: "您需要登入才能建立活動",
+        variant: "destructive",
+      });
+      navigate("/login");
+      return;
+    }
+
     setIsSubmitting(true);
     
-    // Simulate API call
-    setTimeout(() => {
-      setIsSubmitting(false);
+    try {
+      // 組合日期時間
+      const startDateTime = `${activity.date}T${activity.startTime || "00:00"}:00`;
+      const endDateTime = `${activity.date}T${activity.endTime || "23:59"}:00`;
+      
+      const matchData: CreateMatchRequest = {
+        name: activity.title,
+        court: activity.location,
+        area: activity.area,
+        sport: activity.sport,
+        address: activity.address,
+        dateTime: startDateTime,
+        endDateTime: endDateTime,
+        price: activity.price,
+        unit: 1, // 每人
+        requiredPeople: activity.maxSlots,
+        maxGrade: activity.levelMax,
+        minGrade: activity.levelMin,
+        remark: activity.description,
+      };
+
+      console.log("Creating match:", matchData);
+      await createMatch(token, matchData);
+      
       setShowSuccess(true);
       toast({
         title: "活動建立成功！",
         description: "你的活動已成功建立，等待球友報名中",
       });
-    }, 800);
+    } catch (err) {
+      console.error("Failed to create match:", err);
+      toast({
+        title: "建立失敗",
+        description: err instanceof Error ? err.message : "建立活動時發生錯誤",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <MainLayout>
+        <div className="container py-8 md:py-12 flex items-center justify-center min-h-[50vh]">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </MainLayout>
+    );
   };
 
   if (showSuccess) {
@@ -81,7 +232,7 @@ export default function NewActivity() {
             <Card className="text-left mb-8">
               <CardContent className="p-6">
                 <div className="flex items-center gap-2 mb-3">
-                  <SportBadge sport={activity.sport} size="sm" />
+                  <SportBadge sport={activity.sportType} size="sm" />
                 </div>
                 <h3 className="text-lg font-semibold text-foreground mb-3">{activity.title}</h3>
                 <div className="space-y-2 text-sm text-muted-foreground">
@@ -113,7 +264,9 @@ export default function NewActivity() {
                 setShowSuccess(false);
                 setActivity({
                   title: "",
-                  sport: "badminton",
+                  sport: sports.length > 0 ? sports[0].value : 1,
+                  sportType: sports.length > 0 ? (sportValueToType[sports[0].value] || "badminton") : "badminton",
+                  area: 0,
                   date: "",
                   startTime: "",
                   endTime: "",
@@ -162,19 +315,23 @@ export default function NewActivity() {
                 <div className="space-y-2">
                   <Label>運動類型</Label>
                   <div className="flex flex-wrap gap-2">
-                    {sportTypes.map((sport) => (
-                      <Button
-                        key={sport}
-                        type="button"
-                        variant={activity.sport === sport ? "default" : "outline"}
-                        size="sm"
-                        className="gap-1"
-                        onClick={() => setActivity({ ...activity, sport })}
-                      >
-                        <span>{sportConfig[sport].emoji}</span>
-                        <span>{sportConfig[sport].label}</span>
-                      </Button>
-                    ))}
+                    {sports.map((sport) => {
+                      const sportType = sportValueToType[sport.value];
+                      const config = sportType ? sportConfig[sportType] : null;
+                      return (
+                        <Button
+                          key={sport.value}
+                          type="button"
+                          variant={activity.sport === sport.value ? "default" : "outline"}
+                          size="sm"
+                          className="gap-1"
+                          onClick={() => handleSportChange(sport.value)}
+                        >
+                          {config && <span>{config.emoji}</span>}
+                          <span>{sport.displayName}</span>
+                        </Button>
+                      );
+                    })}
                   </div>
                 </div>
 
@@ -187,6 +344,26 @@ export default function NewActivity() {
                     value={activity.title}
                     onChange={(e) => setActivity({ ...activity, title: e.target.value })}
                   />
+                </div>
+
+                {/* Area Selection */}
+                <div className="space-y-2">
+                  <Label htmlFor="area">活動地區 *</Label>
+                  <Select
+                    value={activity.area ? String(activity.area) : ""}
+                    onValueChange={(value) => setActivity({ ...activity, area: Number(value) })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="請選擇地區" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {areas.map((area) => (
+                        <SelectItem key={area.value} value={String(area.value)}>
+                          {area.displayName}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 {/* Date & Time */}
@@ -322,17 +499,27 @@ export default function NewActivity() {
                     </div>
                   </div>
                   <div className="pt-2">
-                    <Slider
-                      value={[activity.levelMin, activity.levelMax]}
-                      onValueChange={([min, max]) => setActivity({ ...activity, levelMin: min, levelMax: max })}
-                      min={1}
-                      max={8}
-                      step={1}
-                    />
-                    <div className="flex justify-between text-xs text-muted-foreground mt-2">
-                      <span>L1 初學</span>
-                      <span>L8 專業</span>
-                    </div>
+                    {(() => {
+                      const currentSport = sports.find(s => s.value === activity.sport);
+                      const grades = currentSport?.validGrades || [];
+                      const minGrade = grades.length > 0 ? Math.min(...grades) : 1;
+                      const maxGrade = grades.length > 0 ? Math.max(...grades) : 8;
+                      return (
+                        <>
+                          <Slider
+                            value={[activity.levelMin, activity.levelMax]}
+                            onValueChange={([min, max]) => setActivity({ ...activity, levelMin: min, levelMax: max })}
+                            min={minGrade}
+                            max={maxGrade}
+                            step={1}
+                          />
+                          <div className="flex justify-between text-xs text-muted-foreground mt-2">
+                            <span>L{minGrade}</span>
+                            <span>L{maxGrade}</span>
+                          </div>
+                        </>
+                      );
+                    })()}
                   </div>
                 </div>
               </CardContent>
@@ -349,7 +536,7 @@ export default function NewActivity() {
                 <CardContent>
                   <div className="space-y-4">
                     <div className="flex items-center gap-2">
-                      <SportBadge sport={activity.sport} size="sm" />
+                      <SportBadge sport={activity.sportType} size="sm" />
                     </div>
                     
                     <h3 className="font-semibold text-foreground">
@@ -363,7 +550,10 @@ export default function NewActivity() {
                       </div>
                       <div className="flex items-center gap-2">
                         <MapPin className="h-4 w-4" />
-                        <span>{activity.location || "選擇場地"}</span>
+                        <span>
+                          {areas.find(a => a.value === activity.area)?.displayName || "選擇地區"} 
+                          {activity.location ? ` - ${activity.location}` : ""}
+                        </span>
                       </div>
                       <div className="flex items-center gap-2">
                         <Users className="h-4 w-4" />

@@ -1,0 +1,163 @@
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+
+// 建立活動請求
+export interface CreateMatchRequest {
+  name: string;           // 活動名稱
+  court: string;          // 場地名稱
+  area: number;           // 地區 (enum value)
+  sport: number;          // 運動類型 (enum value)
+  address: string;        // 詳細地址
+  dateTime: string;       // 開始日期時間 (ISO 8601)
+  endDateTime: string;    // 結束日期時間 (ISO 8601)
+  price: number;          // 費用
+  unit: number;           // 計費單位 (1 = 每人)
+  groupId?: number | null; // 球團 ID (這裡不會用到)
+  requiredPeople: number; // 名額上限
+  maxGrade: number;       // 等級上限
+  minGrade: number;       // 等級下限
+  remark?: string;        // 活動說明
+  isGuestPlayerAllowed?: boolean; // 是否允許訪客 (這裡不會用到)
+}
+
+// 活動回應
+export interface MatchResponse {
+  id: number;
+  name: string;
+  court: string;
+  area: number;
+  sport: number;
+  address: string;
+  dateTime: string;
+  endDateTime: string;
+  price: number;
+  unit: number;
+  groupId?: number | null;
+  requiredPeople: number;
+  maxGrade: number;
+  minGrade: number;
+  remark?: string;
+  isGuestPlayerAllowed?: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// 後端標準回應格式
+interface ApiResponse<T> {
+  success: boolean;
+  message: string;
+  data: T;
+}
+
+/**
+ * 建立新活動
+ */
+export async function createMatch(token: string, data: CreateMatchRequest): Promise<MatchResponse> {
+  const response = await fetch(`${API_BASE_URL}/api/matches`, {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(data),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error("Create match error:", response.status, errorText);
+    
+    let errorMessage = "建立活動失敗";
+    try {
+      const errorJson = JSON.parse(errorText);
+      errorMessage = errorJson.message || errorJson.title || errorMessage;
+    } catch {
+      if (errorText) {
+        errorMessage = errorText;
+      }
+    }
+    
+    throw new Error(`${errorMessage} (${response.status})`);
+  }
+
+  const result = await response.json();
+  console.log("Create match response:", result);
+  
+  // 處理包裝格式
+  if (result.success !== undefined && result.data) {
+    return result.data as MatchResponse;
+  }
+  return result as MatchResponse;
+}
+
+/**
+ * 取得活動列表
+ */
+export async function getMatches(token?: string, params?: {
+  area?: number;
+  date?: string;
+  participationStatus?: string;
+  pageNumber?: number;
+  pageSize?: number;
+}): Promise<MatchResponse[]> {
+  const searchParams = new URLSearchParams();
+  if (params?.area) searchParams.append("area", String(params.area));
+  if (params?.date) searchParams.append("date", params.date);
+  if (params?.participationStatus) searchParams.append("participationStatus", params.participationStatus);
+  if (params?.pageNumber) searchParams.append("pageNumber", String(params.pageNumber));
+  if (params?.pageSize) searchParams.append("pageSize", String(params.pageSize));
+
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+
+  const url = `${API_BASE_URL}/api/matches${searchParams.toString() ? `?${searchParams.toString()}` : ""}`;
+  const response = await fetch(url, {
+    method: "GET",
+    headers,
+  });
+
+  if (!response.ok) {
+    throw new Error(`取得活動列表失敗 (${response.status})`);
+  }
+
+  const result = await response.json();
+  console.log("Get matches response:", result);
+  
+  // 處理包裝格式
+  if (result.success !== undefined && result.data) {
+    return result.data as MatchResponse[];
+  }
+  return result as MatchResponse[];
+}
+
+/**
+ * 取得單一活動詳情
+ */
+export async function getMatch(id: number, token?: string): Promise<MatchResponse> {
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+
+  const response = await fetch(`${API_BASE_URL}/api/matches/${id}`, {
+    method: "GET",
+    headers,
+  });
+
+  if (!response.ok) {
+    throw new Error(`取得活動詳情失敗 (${response.status})`);
+  }
+
+  const result = await response.json();
+  console.log("Get match response:", result);
+  
+  // 處理包裝格式
+  if (result.success !== undefined && result.data) {
+    return result.data as MatchResponse;
+  }
+  return result as MatchResponse;
+}

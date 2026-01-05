@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Button } from "@/components/ui/button";
@@ -8,41 +8,57 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
-import { Users, MapPin, Phone, Mail, Globe } from "lucide-react";
-
-const sportTypes = [
-  { value: "badminton", label: "羽球" },
-  { value: "tennis", label: "網球" },
-  { value: "basketball", label: "籃球" },
-  { value: "volleyball", label: "排球" },
-  { value: "table-tennis", label: "桌球" },
-  { value: "soccer", label: "足球" },
-  { value: "baseball", label: "棒球" },
-  { value: "swimming", label: "游泳" },
-  { value: "running", label: "跑步" },
-  { value: "other", label: "其他" },
-];
+import { Users, MapPin, Phone, Mail, Globe, Loader2, Building } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { getSports, SportEnum } from "@/services/enumApi";
+import { createGroup, CreateGroupRequest } from "@/services/groupApi";
 
 const ClubNew = () => {
   const navigate = useNavigate();
+  const { token } = useAuth();
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [sports, setSports] = useState<SportEnum[]>([]);
+  
   const [formData, setFormData] = useState({
     name: "",
-    sportType: "",
+    sport: 0,
     description: "",
-    location: "",
-    contactPhone: "",
-    contactEmail: "",
-    website: "",
+    court: "",
+    address: "",
+    phone: "",
+    email: "",
+    websiteUrl: "",
   });
 
-  const handleChange = (field: string, value: string) => {
+  // 載入運動類型
+  useEffect(() => {
+    async function loadSports() {
+      try {
+        const sportsData = await getSports();
+        setSports(sportsData);
+      } catch (err) {
+        console.error("Failed to load sports:", err);
+        toast({
+          title: "載入失敗",
+          description: "無法載入運動類型資料",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    loadSports();
+  }, []);
+
+  const handleChange = (field: string, value: string | number) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.name || !formData.sportType) {
+    if (!formData.name || !formData.sport) {
       toast({
         title: "請填寫必要欄位",
         description: "球團名稱和運動類型為必填",
@@ -51,13 +67,62 @@ const ClubNew = () => {
       return;
     }
 
-    // TODO: Submit to backend
-    toast({
-      title: "球團建立成功",
-      description: `${formData.name} 已成功建立`,
-    });
-    navigate("/club");
+    if (!token) {
+      toast({
+        title: "請先登入",
+        description: "您需要登入才能建立球團",
+        variant: "destructive",
+      });
+      navigate("/login");
+      return;
+    }
+
+    setIsSubmitting(true);
+    
+    try {
+      // 只傳送有值的欄位
+      const groupData: CreateGroupRequest = {
+        name: formData.name,
+        sport: formData.sport,
+      };
+      
+      // 可選欄位只在有值時才加入
+      if (formData.description) groupData.description = formData.description;
+      if (formData.court) groupData.court = formData.court;
+      if (formData.address) groupData.address = formData.address;
+      if (formData.phone) groupData.phone = formData.phone;
+      if (formData.email) groupData.email = formData.email;
+      if (formData.websiteUrl) groupData.websiteUrl = formData.websiteUrl;
+
+      console.log("Creating group:", groupData);
+      await createGroup(token, groupData);
+      
+      toast({
+        title: "球團建立成功",
+        description: `${formData.name} 已成功建立`,
+      });
+      navigate("/club");
+    } catch (err) {
+      console.error("Failed to create group:", err);
+      toast({
+        title: "建立失敗",
+        description: err instanceof Error ? err.message : "建立球團時發生錯誤",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
+
+  if (isLoading) {
+    return (
+      <MainLayout>
+        <div className="container py-8 flex items-center justify-center min-h-[50vh]">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </MainLayout>
+    );
+  }
 
   return (
     <MainLayout>
@@ -93,16 +158,16 @@ const ClubNew = () => {
                     運動類型 <span className="text-destructive">*</span>
                   </Label>
                   <Select
-                    value={formData.sportType}
-                    onValueChange={(value) => handleChange("sportType", value)}
+                    value={formData.sport ? String(formData.sport) : ""}
+                    onValueChange={(value) => handleChange("sport", Number(value))}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="選擇運動類型" />
                     </SelectTrigger>
                     <SelectContent>
-                      {sportTypes.map((sport) => (
-                        <SelectItem key={sport.value} value={sport.value}>
-                          {sport.label}
+                      {sports.map((sport) => (
+                        <SelectItem key={sport.value} value={String(sport.value)}>
+                          {sport.displayName}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -127,59 +192,72 @@ const ClubNew = () => {
                 <h3 className="font-medium text-foreground">聯絡資訊</h3>
                 
                 <div className="space-y-2">
-                  <Label htmlFor="location" className="flex items-center gap-2">
-                    <MapPin className="h-4 w-4 text-muted-foreground" />
+                  <Label htmlFor="court" className="flex items-center gap-2">
+                    <Building className="h-4 w-4 text-muted-foreground" />
                     活動地點
                   </Label>
                   <Input
-                    id="location"
-                    placeholder="主要活動場地地址"
-                    value={formData.location}
-                    onChange={(e) => handleChange("location", e.target.value)}
+                    id="court"
+                    placeholder="例如：台北市大安運動中心"
+                    value={formData.court}
+                    onChange={(e) => handleChange("court", e.target.value)}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="address" className="flex items-center gap-2">
+                    <MapPin className="h-4 w-4 text-muted-foreground" />
+                    活動地址
+                  </Label>
+                  <Input
+                    id="address"
+                    placeholder="例如：台北市大安區辛亥路三段55號"
+                    value={formData.address}
+                    onChange={(e) => handleChange("address", e.target.value)}
                   />
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="contactPhone" className="flex items-center gap-2">
+                    <Label htmlFor="phone" className="flex items-center gap-2">
                       <Phone className="h-4 w-4 text-muted-foreground" />
                       聯絡電話
                     </Label>
                     <Input
-                      id="contactPhone"
+                      id="phone"
                       type="tel"
                       placeholder="0912-345-678"
-                      value={formData.contactPhone}
-                      onChange={(e) => handleChange("contactPhone", e.target.value)}
+                      value={formData.phone}
+                      onChange={(e) => handleChange("phone", e.target.value)}
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="contactEmail" className="flex items-center gap-2">
+                    <Label htmlFor="email" className="flex items-center gap-2">
                       <Mail className="h-4 w-4 text-muted-foreground" />
                       電子郵件
                     </Label>
                     <Input
-                      id="contactEmail"
+                      id="email"
                       type="email"
                       placeholder="club@example.com"
-                      value={formData.contactEmail}
-                      onChange={(e) => handleChange("contactEmail", e.target.value)}
+                      value={formData.email}
+                      onChange={(e) => handleChange("email", e.target.value)}
                     />
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="website" className="flex items-center gap-2">
+                  <Label htmlFor="websiteUrl" className="flex items-center gap-2">
                     <Globe className="h-4 w-4 text-muted-foreground" />
                     網站連結
                   </Label>
                   <Input
-                    id="website"
+                    id="websiteUrl"
                     type="url"
                     placeholder="https://..."
-                    value={formData.website}
-                    onChange={(e) => handleChange("website", e.target.value)}
+                    value={formData.websiteUrl}
+                    onChange={(e) => handleChange("websiteUrl", e.target.value)}
                   />
                 </div>
               </div>
@@ -191,10 +269,12 @@ const ClubNew = () => {
                   variant="outline"
                   className="flex-1"
                   onClick={() => navigate(-1)}
+                  disabled={isSubmitting}
                 >
                   取消
                 </Button>
-                <Button type="submit" className="flex-1">
+                <Button type="submit" className="flex-1" disabled={isSubmitting}>
+                  {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   建立球團
                 </Button>
               </div>
