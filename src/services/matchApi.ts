@@ -88,22 +88,36 @@ export async function createMatch(token: string, data: CreateMatchRequest): Prom
   return result as MatchResponse;
 }
 
+// 分頁回應結構
+export interface PageResponse<T> {
+  content: T[];
+  pageNumber: number;
+  pageSize: number;
+  totalElements: number;
+  totalPages: number;
+  last: boolean;
+}
+
+export interface GetMatchesParams {
+  area?: number;
+  date?: string;
+  keyword?: string;
+  sport?: number;
+  pageNumber?: number;
+  pageSize?: number;
+}
+
 /**
  * 取得活動列表
  */
-export async function getMatches(token?: string, params?: {
-  area?: number;
-  date?: string;
-  participationStatus?: string;
-  pageNumber?: number;
-  pageSize?: number;
-}): Promise<MatchResponse[]> {
+export async function getMatches(token?: string, params?: GetMatchesParams): Promise<PageResponse<MatchResponse>> {
   const searchParams = new URLSearchParams();
   if (params?.area) searchParams.append("area", String(params.area));
   if (params?.date) searchParams.append("date", params.date);
-  if (params?.participationStatus) searchParams.append("participationStatus", params.participationStatus);
-  if (params?.pageNumber) searchParams.append("pageNumber", String(params.pageNumber));
-  if (params?.pageSize) searchParams.append("pageSize", String(params.pageSize));
+  if (params?.keyword) searchParams.append("keyword", params.keyword);
+  if (params?.sport) searchParams.append("sport", String(params.sport));
+  if (params?.pageNumber !== undefined) searchParams.append("pageNumber", String(params.pageNumber));
+  if (params?.pageSize !== undefined) searchParams.append("pageSize", String(params.pageSize));
 
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
@@ -127,9 +141,10 @@ export async function getMatches(token?: string, params?: {
   
   // 處理包裝格式
   if (result.success !== undefined && result.data) {
-    return result.data as MatchResponse[];
+    return result.data as PageResponse<MatchResponse>;
   }
-  return result as MatchResponse[];
+  // 如果直接回傳 PageResponse
+  return result as PageResponse<MatchResponse>;
 }
 
 /**
