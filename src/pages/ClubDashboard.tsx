@@ -127,6 +127,12 @@ export default function ClubDashboard() {
             </div>
           </div>
           <div className="flex gap-2">
+            <Link to="/club/new-activity">
+              <Button className="gap-2">
+                <Plus className="h-4 w-4" />
+                新增活動
+              </Button>
+            </Link>
             <ClubInviteDialog 
               clubId={mockClub.id} 
               clubName={mockClub.name}
@@ -137,12 +143,6 @@ export default function ClubDashboard() {
                 </Button>
               }
             />
-            <Link to="/club/new-activity">
-              <Button className="gap-2">
-                <Plus className="h-4 w-4" />
-                新增活動
-              </Button>
-            </Link>
             <Button variant="outline" size="icon">
               <Settings className="h-4 w-4" />
             </Button>
