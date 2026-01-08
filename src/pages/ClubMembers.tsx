@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { SkillLevelBadge } from "@/components/ui/SkillLevelBadge";
 import { CreditBadge } from "@/components/ui/CreditBadge";
+import { ClubInviteDialog } from "@/components/ClubInviteDialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -20,6 +21,11 @@ import {
   Filter
 } from "lucide-react";
 import { Link } from "react-router-dom";
+
+const mockClub = {
+  id: "1",
+  name: "羽翔俱樂部",
+};
 
 const mockMembers = [
   { id: "1", name: "王小明", level: 5, creditScore: 4.8, role: "admin", status: "active", paymentStatus: "paid", joinDate: "2023/03" },
@@ -53,10 +59,16 @@ export default function ClubMembers() {
             <h1 className="text-2xl md:text-3xl font-bold text-foreground">成員管理</h1>
             <p className="text-muted-foreground mt-1">管理球團所有成員</p>
           </div>
-          <Button className="gap-2">
-            <UserPlus className="h-4 w-4" />
-            邀請成員
-          </Button>
+          <ClubInviteDialog 
+            clubId={mockClub.id} 
+            clubName={mockClub.name}
+            trigger={
+              <Button className="gap-2">
+                <UserPlus className="h-4 w-4" />
+                邀請成員
+              </Button>
+            }
+          />
         </div>
 
         {/* Stats */}

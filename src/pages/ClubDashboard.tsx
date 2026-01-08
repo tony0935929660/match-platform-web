@@ -5,6 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SportBadge, SportType } from "@/components/ui/SportBadge";
 import { CreditBadge } from "@/components/ui/CreditBadge";
 import { SkillLevelBadge } from "@/components/ui/SkillLevelBadge";
+import { ClubInviteDialog } from "@/components/ClubInviteDialog";
 import { 
   Plus,
   Settings,
@@ -19,7 +20,8 @@ import {
   CheckCircle,
   XCircle,
   ChevronRight,
-  MapPin
+  MapPin,
+  QrCode
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -131,6 +133,16 @@ export default function ClubDashboard() {
                 新增活動
               </Button>
             </Link>
+            <ClubInviteDialog 
+              clubId={mockClub.id} 
+              clubName={mockClub.name}
+              trigger={
+                <Button variant="outline" className="gap-2">
+                  <QrCode className="h-4 w-4" />
+                  邀請成員
+                </Button>
+              }
+            />
             <Button variant="outline" size="icon">
               <Settings className="h-4 w-4" />
             </Button>
@@ -312,10 +324,16 @@ export default function ClubDashboard() {
                           <ChevronRight className="h-4 w-4" />
                         </Button>
                       </Link>
-                      <Button size="sm" className="gap-2">
-                        <UserPlus className="h-4 w-4" />
-                        邀請成員
-                      </Button>
+                      <ClubInviteDialog 
+                        clubId={mockClub.id} 
+                        clubName={mockClub.name}
+                        trigger={
+                          <Button size="sm" className="gap-2">
+                            <UserPlus className="h-4 w-4" />
+                            邀請成員
+                          </Button>
+                        }
+                      />
                     </div>
                   </div>
                 </CardHeader>
