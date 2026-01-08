@@ -324,10 +324,16 @@ export default function ClubDashboard() {
                           <ChevronRight className="h-4 w-4" />
                         </Button>
                       </Link>
-                      <Button size="sm" className="gap-2">
-                        <UserPlus className="h-4 w-4" />
-                        邀請成員
-                      </Button>
+                      <ClubInviteDialog 
+                        clubId={mockClub.id} 
+                        clubName={mockClub.name}
+                        trigger={
+                          <Button size="sm" className="gap-2">
+                            <UserPlus className="h-4 w-4" />
+                            邀請成員
+                          </Button>
+                        }
+                      />
                     </div>
                   </div>
                 </CardHeader>
