@@ -1,0 +1,75 @@
+import { useEffect } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { useMutation } from "@tanstack/react-query";
+import { joinGroupByLink } from "@/services/groupApi";
+import { useAuth } from "@/contexts/AuthContext";
+import { MainLayout } from "@/components/layout/MainLayout";
+import { Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
+import { Link } from "react-router-dom";
+
+export default function ClubJoin() {
+  const { code } = useParams();
+  const navigate = useNavigate();
+  const { token, isAuthenticated, login } = useAuth();
+  const { toast } = useToast();
+
+  const joinMutation = useMutation({
+    mutationFn: () => joinGroupByLink(token!, code!),
+    onSuccess: () => {
+      toast({
+        title: "加入成功",
+        description: "您已成功加入球團！",
+      });
+      navigate("/club");
+    },
+    onError: (error) => {
+      toast({
+        title: "加入失敗",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  });
+
+  useEffect(() => {
+    if (code && isAuthenticated && !joinMutation.isPending && !joinMutation.isSuccess && !joinMutation.isError) {
+      joinMutation.mutate();
+    }
+  }, [code, isAuthenticated]);
+
+  if (!isAuthenticated) {
+    return (
+      <MainLayout>
+        <div className="container flex flex-col items-center justify-center min-h-[60vh] gap-4">
+          <h1 className="text-2xl font-bold">請先登入</h1>
+          <p className="text-muted-foreground">您需要登入才能加入球團</p>
+          <Button onClick={login}>前往登入</Button>
+        </div>
+      </MainLayout>
+    );
+  }
+
+  return (
+    <MainLayout>
+      <div className="container flex flex-col items-center justify-center min-h-[60vh] gap-4">
+        {joinMutation.isPending && (
+          <>
+            <Loader2 className="h-10 w-10 animate-spin text-primary" />
+            <p className="text-muted-foreground">正在加入球團...</p>
+          </>
+        )}
+        {joinMutation.isError && (
+          <>
+            <h1 className="text-2xl font-bold text-destructive">加入失敗</h1>
+            <p className="text-muted-foreground">{joinMutation.error.message}</p>
+            <Link to="/">
+              <Button variant="outline">回首頁</Button>
+            </Link>
+          </>
+        )}
+      </div>
+    </MainLayout>
+  );
+}

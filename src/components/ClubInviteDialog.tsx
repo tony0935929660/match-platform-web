@@ -1,5 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { QRCodeSVG } from "qrcode.react";
+import { useMutation } from "@tanstack/react-query";
+import { createInviteLink, addMemberToGroup } from "@/services/groupApi";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   Dialog,
   DialogContent,
@@ -11,8 +14,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { QrCode, UserPlus, Copy, Check } from "lucide-react";
+import { QrCode, UserPlus, Copy, RefreshCw, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { addDays } from "date-fns";
 
 interface ClubInviteDialogProps {
   clubId: string;
@@ -24,12 +28,41 @@ export function ClubInviteDialog({ clubId, clubName, trigger }: ClubInviteDialog
   const [userId, setUserId] = useState("");
   const [copied, setCopied] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [currentInviteCode, setCurrentInviteCode] = useState<string | null>(null);
   const { toast } = useToast();
+  const { token } = useAuth();
+  const [isOpen, setIsOpen] = useState(false);
+
+  const createLinkMutation = useMutation({
+    mutationFn: () => createInviteLink(token!, clubId, {
+      expiresAt: addDays(new Date(), 1).toISOString(), // Generate for 1 day
+      maxUses: 2147483647,
+    }),
+    onSuccess: (data) => {
+      setCurrentInviteCode(data.code);
+    },
+    onError: (error) => {
+      toast({
+        title: "生成邀請連結失敗",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  });
+
+  // Fetch a new link when dialog opens if we don't have one
+  useEffect(() => {
+    if (isOpen && !currentInviteCode && !createLinkMutation.isPending && !createLinkMutation.isSuccess) {
+      createLinkMutation.mutate();
+    }
+  }, [isOpen]);
 
   // 生成邀請連結 (使用者掃描後會導向的頁面)
-  const inviteUrl = `${window.location.origin}/club/join/${clubId}`;
+  // Assuming we have a route /club/join/:code for users to land on
+  const inviteUrl = currentInviteCode ? `${window.location.origin}/club/join/${currentInviteCode}` : "";
 
   const handleCopyLink = async () => {
+    if (!inviteUrl) return;
     try {
       await navigator.clipboard.writeText(inviteUrl);
       setCopied(true);
@@ -47,6 +80,10 @@ export function ClubInviteDialog({ clubId, clubName, trigger }: ClubInviteDialog
     }
   };
 
+  const handleRefreshLink = () => {
+    createLinkMutation.mutate();
+  };
+
   const handleAddMember = async () => {
     if (!userId.trim()) {
       toast({
@@ -58,18 +95,18 @@ export function ClubInviteDialog({ clubId, clubName, trigger }: ClubInviteDialog
 
     setIsSubmitting(true);
     try {
-      // TODO: 呼叫 API 將使用者加入球團
-      // await api.addMemberToClub(clubId, userId);
+      await addMemberToGroup(token!, clubId, userId);
       
       toast({
         title: "已送出邀請",
-        description: `已邀請使用者 ${userId} 加入球團`,
+        description: `已成功將使用者 ${userId} 加入球團`,
       });
       setUserId("");
-    } catch {
+      setIsOpen(false);
+    } catch(error: any) {
       toast({
         title: "邀請失敗",
-        description: "請稍後再試",
+        description: error.message || "請稍後再試",
         variant: "destructive",
       });
     } finally {
@@ -78,7 +115,7 @@ export function ClubInviteDialog({ clubId, clubName, trigger }: ClubInviteDialog
   };
 
   return (
-    <Dialog>
+    <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
         {trigger || (
           <Button variant="outline" size="icon">
@@ -105,40 +142,58 @@ export function ClubInviteDialog({ clubId, clubName, trigger }: ClubInviteDialog
           
           <TabsContent value="qrcode" className="space-y-4">
             <div className="flex flex-col items-center gap-4 py-4">
-              <div className="p-4 bg-white rounded-xl">
-                <QRCodeSVG
-                  value={inviteUrl}
-                  size={200}
-                  level="H"
-                  includeMargin={false}
-                />
+              <div className="p-4 bg-white rounded-xl relative">
+                  {createLinkMutation.isPending ? (
+                    <div className="w-[200px] h-[200px] flex items-center justify-center">
+                      <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                    </div>
+                  ) : currentInviteCode ? (
+                    <QRCodeSVG
+                      value={inviteUrl}
+                      size={200}
+                      level="H"
+                      includeMargin={false}
+                    />
+                  ) : (
+                    <div className="w-[200px] h-[200px] flex items-center justify-center text-muted-foreground">
+                      無法生成 QR Code
+                    </div>
+                  )}
               </div>
-              <p className="text-sm text-muted-foreground text-center">
-                讓成員掃描此 QR Code 即可加入球團
-              </p>
             </div>
-            
-            <div className="flex items-center gap-2">
-              <Input
-                value={inviteUrl}
-                readOnly
-                className="text-xs"
-              />
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={handleCopyLink}
+            <div className="text-center text-sm text-muted-foreground flex items-center justify-center gap-2">
+              讓成員掃描此 QR Code 即可加入球團
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-6 w-6"
+                onClick={handleRefreshLink}
+                disabled={createLinkMutation.isPending}
               >
-                {copied ? (
-                  <Check className="h-4 w-4 text-primary" />
-                ) : (
-                  <Copy className="h-4 w-4" />
-                )}
+                <RefreshCw className={`h-3 w-3 ${createLinkMutation.isPending ? "animate-spin" : ""}`} />
               </Button>
             </div>
             
-            <div className="text-xs text-muted-foreground">
-              球團 ID: <code className="px-1.5 py-0.5 bg-muted rounded">{clubId}</code>
+            <div className="flex items-center gap-2">
+              <div className="grid flex-1 gap-2">
+                <Label htmlFor="link" className="sr-only">
+                  連結
+                </Label>
+                <Input
+                  id="link"
+                  value={inviteUrl}
+                  readOnly
+                  className="h-9"
+                />
+              </div>
+              <Button size="sm" className="px-3" onClick={handleCopyLink} disabled={!inviteUrl}>
+                {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                <span className="sr-only">Copy</span>
+              </Button>
+            </div>
+            
+            <div className="rounded-md bg-muted p-4 text-sm text-muted-foreground">
+              <p>此連結將於 1 天後失效。您可以隨時刷新以產生新的邀請連結。</p>
             </div>
           </TabsContent>
           

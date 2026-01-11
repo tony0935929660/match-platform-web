@@ -29,6 +29,7 @@ import CourseDetail from "./pages/CourseDetail";
 import AdminDashboard from "./pages/AdminDashboard";
 import Sitemap from "./pages/Sitemap";
 import NotFound from "./pages/NotFound";
+import ClubJoin from "./pages/ClubJoin";
 
 const queryClient = new QueryClient();
 
@@ -43,6 +44,7 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/login" element={<Login />} />
             <Route path="/auth/line/callback" element={<LineCallback />} />
+            <Route path="/club/join/:code" element={<ClubJoin />} />
             <Route path="/activities" element={<Activities />} />
             <Route path="/activities/new" element={<NewActivity />} />
             <Route path="/activities/:id" element={<ActivityDetail />} />

@@ -132,3 +132,103 @@ export async function getGroup(id: number, token: string): Promise<GroupResponse
   }
   return result as GroupResponse;
 }
+
+// 邀請連結回應
+export interface InviteLinkResponse {
+  id: number;
+  groupId: number;
+  code: string;
+  expiresAt: string;
+  maxUses: number;
+  usedCount: number;
+  isActive: boolean;
+  isExpired: boolean;
+  isMaxUsesReached: boolean;
+  isValid: boolean;
+  note?: string;
+  createdByUserId: number;
+  createdByUserName: string;
+  createdAt: string;
+}
+
+export interface CreateInviteLinkRequest {
+  expiresAt?: string;
+  maxUses?: number;
+  note?: string;
+}
+
+/**
+ * 建立邀請連結
+ */
+export async function createInviteLink(token: string, groupId: string, data?: CreateInviteLinkRequest): Promise<InviteLinkResponse> {
+  const response = await fetch(`${API_BASE_URL}/api/groups/${groupId}/invite-links`, {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(data || {}),
+  });
+
+  if (!response.ok) {
+    throw new Error(`建立邀請連結失敗 (${response.status})`);
+  }
+
+  const result = await response.json();
+  if (result.success !== undefined && result.data) {
+    return result.data as InviteLinkResponse;
+  }
+  return result as InviteLinkResponse;
+}
+
+/**
+ * 透過邀請連結加入球團
+ */
+export async function joinGroupByLink(token: string, inviteCode: string): Promise<boolean> {
+  const response = await fetch(`${API_BASE_URL}/api/groups/join-by-link`, {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ inviteCode }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`加入球團失敗 (${response.status}): ${errorText}`);
+  }
+
+  const result = await response.json();
+  return result.success;
+}
+
+/**
+ * 手動邀請成員加入球團
+ */
+export async function addMemberToGroup(token: string, groupId: string, userPublicId: string): Promise<boolean> {
+  const response = await fetch(`${API_BASE_URL}/api/groups/${groupId}/members`, {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ userPublicId }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    // Parse error if possible
+    let errorMsg = `邀請成員失敗 (${response.status})`;
+    try {
+        const errorJson = JSON.parse(errorText);
+        if (errorJson.message) errorMsg = errorJson.message;
+    } catch {}
+    
+    throw new Error(errorMsg);
+  }
+
+  const result = await response.json();
+  return result.success;
+}
+
