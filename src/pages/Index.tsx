@@ -4,6 +4,8 @@ import { SportBadge, SportType, sportConfig } from "@/components/ui/SportBadge";
 import { ActivityCard } from "@/components/ui/ActivityCard";
 import { CreditBadge } from "@/components/ui/CreditBadge";
 import { Link } from "react-router-dom";
+import { getSports, SportEnum } from "@/services/enumApi";
+import { useState, useEffect } from "react";
 import { 
   ArrowRight, 
   MapPin, 
@@ -97,6 +99,26 @@ const mockClubs = [
 ];
 
 export default function Index() {
+  const [sports, setSports] = useState<SportEnum[]>([]);
+
+  useEffect(() => {
+    const fetchSports = async () => {
+      try {
+        const data = await getSports();
+        setSports(data);
+      } catch (error) {
+        console.error("Failed to load sports", error);
+      }
+    };
+    fetchSports();
+  }, []);
+
+  // Helper to get emoji safely
+  const getSportEmoji = (sportName: string) => {
+    const key = sportName.toLowerCase() as SportType;
+    return sportConfig[key]?.emoji || "🏃";
+  };
+
   return (
     <MainLayout>
       {/* Hero Section */}
@@ -111,14 +133,14 @@ export default function Index() {
               最專業的運動揪團平台，讓你輕鬆找到志同道合的球友
             </p>
             <div className="flex flex-wrap justify-center gap-3 animate-fade-in" style={{ animationDelay: "0.2s" }}>
-              {sportTypes.map((sport) => (
-                <Link key={sport} to={`/activities?sport=${sport}`}>
+              {sports.map((sport) => (
+                <Link key={sport.value} to={`/activities?sport=${sport.value}`}>
                   <Button
                     variant="outline"
                     className="h-12 px-5 gap-2 rounded-full border-2 hover:border-primary hover:bg-primary/5 transition-all"
                   >
-                    <span className="text-xl">{sportConfig[sport].emoji}</span>
-                    <span className="font-medium">{sportConfig[sport].label}</span>
+                    <span className="text-xl">{getSportEmoji(sport.name)}</span>
+                    <span className="font-medium">{sport.displayName}</span>
                   </Button>
                 </Link>
               ))}

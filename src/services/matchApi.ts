@@ -32,14 +32,44 @@ export interface MatchResponse {
   price: number;
   unit: number;
   groupId?: number | null;
+  groupName?: string | null;
   requiredPeople: number;
   maxGrade: number;
   minGrade: number;
   remark?: string;
   isGuestPlayerAllowed?: boolean;
+  guestPlayerJoinBeforeStartMinutes?: number;
+  isScoreRecordEnabled?: boolean;
+  userRole?: number; // 0: None, 1: Viewer, 2: Participant, 3: Host
   createdAt: string;
   updatedAt: string;
 }
+
+/**
+ * 取得活動詳情
+ */
+export async function getMatch(token: string, id: string): Promise<MatchResponse> {
+  const response = await fetch(`${API_BASE_URL}/api/matches/${id}`, {
+    method: "GET",
+    headers: {
+      "Authorization": `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`取得活動詳情失敗 (${response.status})`);
+  }
+
+  const result = await response.json();
+  console.log("Get match response:", result);
+  
+  if (result.success !== undefined && result.data) {
+    return result.data as MatchResponse;
+  }
+  return result as MatchResponse;
+}
+
 
 // 後端標準回應格式
 interface ApiResponse<T> {
@@ -148,31 +178,46 @@ export async function getMatches(token?: string, params?: GetMatchesParams): Pro
 }
 
 /**
- * 取得單一活動詳情
+ * 加入活動
  */
-export async function getMatch(id: number, token?: string): Promise<MatchResponse> {
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-  };
-  if (token) {
-    headers["Authorization"] = `Bearer ${token}`;
-  }
-
-  const response = await fetch(`${API_BASE_URL}/api/matches/${id}`, {
-    method: "GET",
-    headers,
+export async function joinMatch(token: string, id: string): Promise<boolean> {
+  const response = await fetch(`${API_BASE_URL}/api/matches/${id}/join`, {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
   });
 
   if (!response.ok) {
-    throw new Error(`取得活動詳情失敗 (${response.status})`);
+    const errorText = await response.text();
+    throw new Error(`加入活動失敗 (${response.status}): ${errorText}`);
   }
 
   const result = await response.json();
-  console.log("Get match response:", result);
-  
-  // 處理包裝格式
-  if (result.success !== undefined && result.data) {
-    return result.data as MatchResponse;
-  }
-  return result as MatchResponse;
+  return result.success;
 }
+
+/**
+ * 離開活動
+ */
+export async function leaveMatch(token: string, id: string): Promise<boolean> {
+  const response = await fetch(`${API_BASE_URL}/api/matches/${id}/leave`, {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`離開活動失敗 (${response.status}): ${errorText}`);
+  }
+
+  const result = await response.json();
+  return result.success;
+}
+
+
+

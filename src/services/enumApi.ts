@@ -22,6 +22,32 @@ export interface BillingUnitEnum {
   displayName: string;
 }
 
+/**
+ * 取得計費單位列表
+ */
+export async function getBillingUnits(): Promise<BillingUnitEnum[]> {
+  const response = await fetch(`${API_BASE_URL}/api/enums/billing-units`, {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`取得計費單位失敗 (${response.status})`);
+  }
+
+  const result = await response.json();
+  // console.log("Billing units enum response:", result);
+  
+  // 處理包裝格式
+  if (result.success !== undefined && result.data) {
+    return result.data as BillingUnitEnum[];
+  }
+  return result as BillingUnitEnum[]; 
+}
+
+
 // 後端標準回應格式
 interface ApiResponse<T> {
   success: boolean;
@@ -79,27 +105,3 @@ export async function getAreas(): Promise<AreaEnum[]> {
   return result as AreaEnum[];
 }
 
-/**
- * 取得計費單位列表
- */
-export async function getBillingUnits(): Promise<BillingUnitEnum[]> {
-  const response = await fetch(`${API_BASE_URL}/api/enums/billing-units`, {
-    method: "GET",
-    headers: {
-      "Content-Type": "application/json",
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error(`取得計費單位失敗 (${response.status})`);
-  }
-
-  const result = await response.json();
-  console.log("Billing units enum response:", result);
-  
-  // 處理包裝格式
-  if (result.success !== undefined && result.data) {
-    return result.data as BillingUnitEnum[];
-  }
-  return result as BillingUnitEnum[];
-}

@@ -6,6 +6,11 @@ import { SportBadge, SportType } from "@/components/ui/SportBadge";
 import { CreditBadge } from "@/components/ui/CreditBadge";
 import { SkillLevelBadge } from "@/components/ui/SkillLevelBadge";
 import { ClubInviteDialog } from "@/components/ClubInviteDialog";
+import { useQuery } from "@tanstack/react-query";
+import { useAuth } from "@/contexts/AuthContext";
+import { getGroups } from "@/services/groupApi";
+import { Loader2 } from "lucide-react";
+import { format } from "date-fns";
 import { 
   Plus,
   Settings,
@@ -100,7 +105,37 @@ const mockScores = [
   { id: "3", date: "2024/12/04", player1: "林小芳", player2: "張明德", score1: 21, score2: 12 },
 ];
 
+const getSportType = (id: number): SportType => {
+  switch (id) {
+    case 1: return "badminton";
+    case 2: return "tennis";
+    case 3: return "table-tennis";
+    case 4: return "basketball";
+    case 5: return "volleyball";
+    case 6: return "soccer";
+    default: return "badminton";
+  }
+};
+
 export default function ClubDashboard() {
+  const { token } = useAuth();
+  const { data: groups, isLoading } = useQuery({
+    queryKey: ['groups'],
+    queryFn: () => getGroups(token!),
+    enabled: !!token,
+  });
+
+  const currentClub = groups?.[0];
+  
+  const displayClub = currentClub ? {
+    id: currentClub.id.toString(),
+    name: currentClub.name,
+    sport: getSportType(currentClub.sport),
+    members: currentClub.memberCount,
+    createdAt: format(new Date(currentClub.createdAt), "yyyy/MM"),
+    description: currentClub.description
+  } : mockClub;
+
   const [activeTab, setActiveTab] = useState("members");
   const tabsRef = useRef<HTMLDivElement>(null);
 
@@ -108,6 +143,16 @@ export default function ClubDashboard() {
     setActiveTab(tab);
     tabsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
+
+  if (isLoading) {
+    return (
+      <MainLayout>
+        <div className="container py-6 flex justify-center">
+          <Loader2 className="h-8 w-8 animate-spin" />
+        </div>
+      </MainLayout>
+    );
+  }
 
   return (
     <MainLayout>
@@ -120,10 +165,10 @@ export default function ClubDashboard() {
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-2xl md:text-3xl font-bold text-foreground">{mockClub.name}</h1>
-                <SportBadge sport={mockClub.sport} size="sm" />
+                <h1 className="text-2xl md:text-3xl font-bold text-foreground">{displayClub.name}</h1>
+                <SportBadge sport={displayClub.sport} size="sm" />
               </div>
-              <p className="text-muted-foreground">{mockClub.members} 成員 · 成立於 {mockClub.createdAt}</p>
+              <p className="text-muted-foreground">{displayClub.members} 成員 · 成立於 {displayClub.createdAt}</p>
             </div>
           </div>
           <div className="flex gap-2">
@@ -134,8 +179,8 @@ export default function ClubDashboard() {
               </Button>
             </Link>
             <ClubInviteDialog 
-              clubId={mockClub.id} 
-              clubName={mockClub.name}
+              clubId={displayClub.id} 
+              clubName={displayClub.name}
               trigger={
                 <Button variant="outline" className="gap-2">
                   <QrCode className="h-4 w-4" />
@@ -178,7 +223,7 @@ export default function ClubDashboard() {
                 <ChevronRight className="h-4 w-4 text-muted-foreground" />
               </div>
               <div className="font-semibold text-foreground">成員管理</div>
-              <div className="text-sm text-muted-foreground">{mockClub.members} 位成員</div>
+              <div className="text-sm text-muted-foreground">{displayClub.members} 位成員</div>
             </CardContent>
           </Card>
           
@@ -325,8 +370,8 @@ export default function ClubDashboard() {
                         </Button>
                       </Link>
                       <ClubInviteDialog 
-                        clubId={mockClub.id} 
-                        clubName={mockClub.name}
+                        clubId={displayClub.id} 
+                        clubName={displayClub.name}
                         trigger={
                           <Button size="sm" className="gap-2">
                             <UserPlus className="h-4 w-4" />

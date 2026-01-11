@@ -6,6 +6,12 @@ import { SportBadge, SportType } from "@/components/ui/SportBadge";
 import { SkillLevelBadge } from "@/components/ui/SkillLevelBadge";
 import { CreditBadge } from "@/components/ui/CreditBadge";
 import { WaitlistCard } from "@/components/ui/ActivityCard";
+import { useAuth } from "@/contexts/AuthContext";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { getMatch, joinMatch, leaveMatch } from "@/services/matchApi";
+import { Loader2 } from "lucide-react";
+import { format } from "date-fns";
+import { toZonedTime } from "date-fns-tz";
 import { 
   ArrowLeft,
   MapPin, 
@@ -70,16 +76,124 @@ const mockActivity = {
 
 type RegistrationStep = "confirm" | "identity" | "payment" | "success";
 
+const getSportType = (id: number): SportType => {
+  switch (id) {
+    case 1: return "badminton";
+    case 2: return "tennis";
+    case 3: return "table-tennis";
+    case 4: return "basketball";
+    case 5: return "volleyball";
+    case 6: return "soccer";
+    default: return "badminton";
+  }
+};
+
 export default function ActivityDetail() {
   const { id } = useParams();
+  const { token, isAuthenticated } = useAuth(); // isAuthenticated for share checks if needed
+  const queryClient = useQueryClient();
+
+  const { data: match, isLoading } = useQuery({
+    queryKey: ['match', id],
+    queryFn: () => getMatch(token!, id!),
+    enabled: !!token && !!id,
+  });
+
   const [showRegistration, setShowRegistration] = useState(false);
   const [registrationStep, setRegistrationStep] = useState<RegistrationStep>("confirm");
   const [selectedIdentity, setSelectedIdentity] = useState<"regular" | "casual">("regular");
   const [selectedPayment, setSelectedPayment] = useState<"single" | "season">("single");
+
+  const joinMutation = useMutation({
+    mutationFn: () => joinMatch(token!, id!),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['match', id] });
+      setRegistrationStep("success");
+      // toast({ title: "報名成功！", description: "你已成功報名此活動，記得準時出席喔！" }); // Dialog already shows success
+    },
+    onError: (error) => {
+      toast({
+        title: "報名失敗",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  });
+
+  const leaveMutation = useMutation({
+    mutationFn: () => leaveMatch(token!, id!),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['match', id] });
+      toast({
+        title: "已取消報名",
+        description: "你已成功取消報名此活動。",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "取消失敗",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  });
   
-  const activity = mockActivity;
+  if (isLoading) {
+    return (
+      <MainLayout>
+        <div className="container py-6 flex justify-center">
+          <Loader2 className="h-8 w-8 animate-spin" />
+        </div>
+      </MainLayout>
+    );
+  }
+
+  // Fallback or loading state handle
+  if (!match) {
+    return (
+      <MainLayout>
+        <div className="container py-6 flex justify-center text-muted-foreground">
+          找不到活動資料
+        </div>
+      </MainLayout>
+    );
+  }
+
+  // Transform API data to UI model
+  const activity = {
+    id: match.id.toString(),
+    title: match.name,
+    description: match.remark || "無活動說明",
+    sport: getSportType(match.sport),
+    date: format(toZonedTime(new Date(match.dateTime), "UTC"), "yyyy/MM/dd (eee)"),
+    time: `${format(new Date(match.dateTime), "HH:mm")}-${format(new Date(match.endDateTime), "HH:mm")}`,
+    location: match.court,
+    address: match.address,
+    hostName: match.groupName || "個人開團", // Placeholder if personal
+    hostAvatar: "", // Not provided in API
+    hostCreditScore: 0, // Not provided in API
+    hostConfidence: "high" as const, // Placeholder
+    hostAttendanceRate: 0, // Placeholder
+    levelRange: { min: match.minGrade, max: match.maxGrade },
+    isCasualOpen: match.isGuestPlayerAllowed || false,
+    casualSlots: 0, // Not provided
+    casualFee: match.price, // Assuming same price if not specified distinct
+    regularFee: match.price,
+    currentSlots: 0, // Not provided in createMatch response, might need another API or update
+    maxSlots: match.requiredPeople,
+    isScoringMode: match.isScoreRecordEnabled || false,
+    waitlistOpenTime: "", // Not provided
+    participants: [], // Not provided in match details currently
+    waitlist: [], // Not provided
+    startDateTime: new Date(match.dateTime),
+    endDateTime: new Date(match.endDateTime),
+    groupId: match.groupId,
+    userRole: match.userRole || 0,
+  };
+
   const isFull = activity.currentSlots >= activity.maxSlots;
   const slotsRemaining = activity.maxSlots - activity.currentSlots;
+  const isJoined = activity.userRole === 2; // 2: Participant
 
   const handleStartRegistration = () => {
     setShowRegistration(true);
@@ -87,22 +201,44 @@ export default function ActivityDetail() {
   };
 
   const handleNextStep = () => {
-    if (registrationStep === "confirm") {
-      setRegistrationStep("identity");
-    } else if (registrationStep === "identity") {
-      setRegistrationStep("payment");
-    } else if (registrationStep === "payment") {
-      setRegistrationStep("success");
-      toast({
-        title: "報名成功！",
-        description: "你已成功報名此活動，記得準時出席喔！",
-      });
+    if (activity.groupId) {
+      // Club Flow
+      if (registrationStep === "confirm") {
+        setRegistrationStep("identity");
+      } else if (registrationStep === "identity") {
+        setRegistrationStep("payment");
+      } else if (registrationStep === "payment") {
+        setRegistrationStep("success");
+      }
+    } else {
+      // Personal Flow
+      if (registrationStep === "confirm") {
+        joinMutation.mutate();
+        // Step switch to success handled in onSuccess
+      }
     }
   };
 
   const handleCloseRegistration = () => {
     setShowRegistration(false);
     setRegistrationStep("confirm");
+  };
+
+  
+  const handleShare = () => {
+    if (!isAuthenticated) {
+      toast({
+        title: "請先登入",
+        description: "登入後即可複製分享連結",
+        variant: "destructive",
+      });
+      return;
+    }
+    navigator.clipboard.writeText(window.location.href);
+    toast({
+      title: "連結已複製",
+      description: "快去分享給朋友吧！",
+    });
   };
 
   return (
@@ -113,6 +249,7 @@ export default function ActivityDetail() {
           <ArrowLeft className="h-4 w-4" />
           返回活動列表
         </Link>
+
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Main Content */}
@@ -141,7 +278,7 @@ export default function ActivityDetail() {
                   <Heart className="h-4 w-4" />
                   收藏
                 </Button>
-                <Button variant="ghost" size="sm" className="gap-2">
+                <Button variant="ghost" size="sm" className="gap-2" onClick={handleShare}>
                   <Share2 className="h-4 w-4" />
                   分享
                 </Button>
@@ -149,6 +286,7 @@ export default function ActivityDetail() {
             </div>
 
             {/* Info Cards */}
+
             <div className="grid grid-cols-2 gap-4">
               <div className="p-4 rounded-xl bg-secondary">
                 <div className="flex items-center gap-2 text-muted-foreground mb-1">
@@ -281,13 +419,30 @@ export default function ActivityDetail() {
               </div>
 
               {/* Register Button */}
-              <Button 
-                className="w-full h-12 text-lg font-semibold" 
-                size="lg"
-                onClick={handleStartRegistration}
-              >
-                {isFull ? "加入候補" : "立即報名"}
-              </Button>
+              {isJoined ? (
+                <Button 
+                  className="w-full h-12 text-lg font-semibold" 
+                  size="lg"
+                  variant="destructive"
+                  onClick={() => {
+                    if (window.confirm("確定要取消報名嗎？")) {
+                      leaveMutation.mutate();
+                    }
+                  }}
+                  disabled={leaveMutation.isPending}
+                >
+                  {leaveMutation.isPending ? "處理中..." : "取消報名"}
+                </Button>
+              ) : (
+                <Button 
+                  className="w-full h-12 text-lg font-semibold" 
+                  size="lg"
+                  onClick={handleStartRegistration}
+                  disabled={isFull}
+                >
+                  {isFull ? "加入候補" : "立即報名"}
+                </Button>
+              )}
             </div>
 
             {/* Host Info */}
@@ -438,8 +593,12 @@ export default function ActivityDetail() {
             <Button 
               className="flex-1" 
               onClick={registrationStep === "success" ? handleCloseRegistration : handleNextStep}
+              disabled={joinMutation.isPending}
             >
-              {registrationStep === "success" ? "完成" : "下一步"}
+              {registrationStep === "success" ? "完成" : 
+               (!activity.groupId && registrationStep === "confirm") ? 
+               (joinMutation.isPending ? "報名中..." : "確認報名") : 
+               "下一步"}
             </Button>
           </div>
         </DialogContent>

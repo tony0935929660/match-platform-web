@@ -23,8 +23,15 @@ export interface GroupResponse {
   phone?: string;
   email?: string;
   websiteUrl?: string;
+  memberCount: number;
+  myRole: number;
   createdAt: string;
-  updatedAt: string;
+  updatedAt?: string;
+}
+
+export enum ClubRole {
+  Member = 1,
+  Admin = 2,
 }
 
 // 後端標準回應格式
