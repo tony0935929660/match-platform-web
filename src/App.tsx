@@ -8,7 +8,6 @@ import Index from "./pages/Index";
 import Activities from "./pages/Activities";
 import ActivityDetail from "./pages/ActivityDetail";
 import NewActivity from "./pages/NewActivity";
-import MyActivities from "./pages/MyActivities";
 import Profile from "./pages/Profile";
 import Login from "./pages/Login";
 import LineCallback from "./pages/LineCallback";
@@ -48,7 +47,6 @@ const App = () => (
             <Route path="/activities" element={<Activities />} />
             <Route path="/activities/new" element={<NewActivity />} />
             <Route path="/activities/:id" element={<ActivityDetail />} />
-            <Route path="/my-activities" element={<MyActivities />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/club" element={<ClubDashboard />} />
             <Route path="/club/new" element={<ClubNew />} />

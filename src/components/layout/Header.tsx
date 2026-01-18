@@ -31,7 +31,6 @@ const navItems = [
   { label: "首頁", href: "/", icon: Home },
   { label: "找活動", href: "/activities", icon: Calendar },
   { label: "找課程", href: "/courses", icon: BookOpen },
-  { label: "我的活動", href: "/my-activities", icon: Calendar },
   { label: "球團管理", href: "/club", icon: Users },
   { label: "課程管理", href: "/course", icon: BookOpen },
 ];

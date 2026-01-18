@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,10 +8,15 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SportBadge, SportType, sportConfig } from "@/components/ui/SportBadge";
 import { SkillLevelBadge } from "@/components/ui/SkillLevelBadge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
+import { getSports, getAreas, SportEnum, AreaEnum, getBillingUnits } from "@/services/enumApi";
+import { getGroups, GroupResponse } from "@/services/groupApi";
+import { createMatch, CreateMatchRequest } from "@/services/matchApi";
 import {
   ArrowLeft,
   Calendar,
@@ -20,19 +26,29 @@ import {
   DollarSign,
   Trophy,
   CheckCircle,
+  Loader2,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 
-const sportTypes: SportType[] = ["badminton", "tennis", "basketball", "volleyball", "table-tennis", "soccer"];
+// Map backend sport value to frontend SportType
+const sportValueToType: Record<number, SportType> = {
+  1: "badminton",
+  2: "tennis",
+  3: "table-tennis",
+  4: "basketball",
+  5: "volleyball",
+  6: "soccer",
+};
 
 export default function ClubNewActivity() {
   const navigate = useNavigate();
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { token } = useAuth();
   const [showSuccess, setShowSuccess] = useState(false);
   
   const [activity, setActivity] = useState({
     title: "",
-    sport: "badminton" as SportType,
+    sport: 1, // Default to badminton (enum value)
+    area: 0, // Will be selected from dropdown
     date: "",
     startTime: "",
     endTime: "",
@@ -46,15 +62,50 @@ export default function ClubNewActivity() {
     levelMax: 8,
     // Club-specific: Casual settings
     isCasualOpen: true,
-    casualSlots: 2,
-    casualFee: 180,
-    needsApproval: false,
     casualWaitlistEnabled: false,
     casualWaitlistMinutes: 60,
     // Club-specific: Scoring mode
     isScoringMode: false,
-    // Club-specific: Waitlist (for club members only)
-    waitlistEnabled: true,
+  });
+
+  // Fetch enums
+  const { data: sports = [] } = useQuery<SportEnum[]>({
+    queryKey: ["sports"],
+    queryFn: getSports,
+  });
+
+  const { data: areas = [] } = useQuery<AreaEnum[]>({
+    queryKey: ["areas"],
+    queryFn: getAreas,
+  });
+
+  // Fetch user's groups to get groupId
+  const { data: groups = [] } = useQuery<GroupResponse[]>({
+    queryKey: ["groups", token],
+    queryFn: () => getGroups(token!),
+    enabled: !!token,
+  });
+
+  // Get the first group as default (user should have at least one group to access this page)
+  const currentGroup = groups[0];
+
+  // Create match mutation
+  const createMatchMutation = useMutation({
+    mutationFn: (data: CreateMatchRequest) => createMatch(token!, data),
+    onSuccess: () => {
+      setShowSuccess(true);
+      toast({
+        title: "活動建立成功！",
+        description: "你的活動已成功建立，等待球友報名中",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "建立失敗",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
   });
 
   const handleSubmit = () => {
@@ -67,17 +118,48 @@ export default function ClubNewActivity() {
       return;
     }
 
-    setIsSubmitting(true);
-    
-    // Simulate API call
-    setTimeout(() => {
-      setIsSubmitting(false);
-      setShowSuccess(true);
+    if (!activity.area) {
       toast({
-        title: "活動建立成功！",
-        description: "你的活動已成功建立，等待球友報名中",
+        title: "請選擇縣市",
+        variant: "destructive",
       });
-    }, 800);
+      return;
+    }
+
+    if (!currentGroup) {
+      toast({
+        title: "找不到球團",
+        description: "請先建立或加入球團",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Build dateTime from date + startTime
+    const dateTime = `${activity.date}T${activity.startTime || "00:00"}:00`;
+    const endDateTime = `${activity.date}T${activity.endTime || "23:59"}:00`;
+
+    const requestData: CreateMatchRequest = {
+      name: activity.title,
+      court: activity.location,
+      area: activity.area,
+      sport: activity.sport,
+      address: activity.address || "",
+      dateTime,
+      endDateTime,
+      price: activity.price,
+      unit: 1, // 固定每人
+      groupId: currentGroup.id,
+      requiredPeople: activity.unlimitedSlots ? 0 : activity.maxSlots,
+      maxGrade: activity.levelMax,
+      minGrade: activity.levelMin,
+      remark: activity.description || undefined,
+      isGuestPlayerAllowed: activity.isCasualOpen,
+      guestPlayerJoinBeforeStartMinutes: activity.casualWaitlistEnabled ? activity.casualWaitlistMinutes : 0,
+      isScoreRecordEnabled: activity.isScoringMode,
+    };
+
+    createMatchMutation.mutate(requestData);
   };
 
   if (showSuccess) {
@@ -95,7 +177,7 @@ export default function ClubNewActivity() {
             <Card className="text-left mb-8">
               <CardContent className="p-6">
                 <div className="flex items-center gap-2 mb-3">
-                  <SportBadge sport={activity.sport} size="sm" />
+                  <SportBadge sport={sportValueToType[activity.sport] || "badminton"} size="sm" />
                   {activity.isCasualOpen && (
                     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary">
                       <span className="w-1.5 h-1.5 rounded-full bg-primary" />
@@ -126,9 +208,6 @@ export default function ClubNewActivity() {
                   <div className="flex items-center gap-2">
                     <DollarSign className="h-4 w-4" />
                     <span>${activity.price} / 人</span>
-                    {activity.isCasualOpen && (
-                      <span className="text-muted-foreground">（臨打 ${activity.casualFee}）</span>
-                    )}
                   </div>
                 </div>
               </CardContent>
@@ -142,7 +221,8 @@ export default function ClubNewActivity() {
                 setShowSuccess(false);
                 setActivity({
                   title: "",
-                  sport: "badminton",
+                  sport: 1,
+                  area: 0,
                   date: "",
                   startTime: "",
                   endTime: "",
@@ -155,13 +235,9 @@ export default function ClubNewActivity() {
                   levelMin: 1,
                   levelMax: 8,
                   isCasualOpen: true,
-                  casualSlots: 2,
-                  casualFee: 180,
-                  needsApproval: false,
                   casualWaitlistEnabled: false,
                   casualWaitlistMinutes: 60,
                   isScoringMode: false,
-                  waitlistEnabled: true,
                 });
               }}>
                 再開一團
@@ -200,20 +276,44 @@ export default function ClubNewActivity() {
                 <div className="space-y-2">
                   <Label>運動類型</Label>
                   <div className="flex flex-wrap gap-2">
-                    {sportTypes.map((sport) => (
-                      <Button
-                        key={sport}
-                        type="button"
-                        variant={activity.sport === sport ? "default" : "outline"}
-                        size="sm"
-                        className="gap-1"
-                        onClick={() => setActivity({ ...activity, sport })}
-                      >
-                        <span>{sportConfig[sport].emoji}</span>
-                        <span>{sportConfig[sport].label}</span>
-                      </Button>
-                    ))}
+                    {sports.map((sport) => {
+                      const sportType = sportValueToType[sport.value];
+                      const config = sportType ? sportConfig[sportType] : null;
+                      return (
+                        <Button
+                          key={sport.value}
+                          type="button"
+                          variant={activity.sport === sport.value ? "default" : "outline"}
+                          size="sm"
+                          className="gap-1"
+                          onClick={() => setActivity({ ...activity, sport: sport.value })}
+                        >
+                          <span>{config?.emoji || "🏃"}</span>
+                          <span>{sport.displayName}</span>
+                        </Button>
+                      );
+                    })}
                   </div>
+                </div>
+
+                {/* Area */}
+                <div className="space-y-2">
+                  <Label>縣市 *</Label>
+                  <Select
+                    value={activity.area ? String(activity.area) : ""}
+                    onValueChange={(value) => setActivity({ ...activity, area: Number(value) })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="請選擇縣市" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {areas.map((area) => (
+                        <SelectItem key={area.value} value={String(area.value)}>
+                          {area.displayName}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 {/* Title */}
@@ -411,51 +511,12 @@ export default function ClubNewActivity() {
                     <span className="w-2 h-2 rounded-full bg-primary" />
                     <span className="text-sm font-medium text-primary">🟢 開放臨打</span>
                   </div>
-                  
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="casualSlots">臨打名額</Label>
-                      <Input
-                        id="casualSlots"
-                        type="number"
-                        min={1}
-                        max={10}
-                        value={activity.casualSlots}
-                        onChange={(e) => setActivity({ ...activity, casualSlots: Number(e.target.value) })}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="casualFee">臨打費用</Label>
-                      <div className="relative">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
-                        <Input
-                          id="casualFee"
-                          type="number"
-                          className="pl-8"
-                          min={0}
-                          value={activity.casualFee}
-                          onChange={(e) => setActivity({ ...activity, casualFee: Number(e.target.value) })}
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <Switch
-                      id="needsApproval"
-                      checked={activity.needsApproval}
-                      onCheckedChange={(checked) => setActivity({ ...activity, needsApproval: checked })}
-                    />
-                    <Label htmlFor="needsApproval" className="cursor-pointer">
-                      臨打需要審核
-                    </Label>
-                  </div>
 
                   {/* Casual Waitlist Timing */}
-                  <div className="pt-4 border-t border-border space-y-3">
+                  <div className="space-y-3">
                     <div className="flex items-center justify-between">
                       <div className="space-y-0.5">
-                        <Label htmlFor="casualWaitlistEnabled" className="cursor-pointer">臨打候補時間</Label>
+                        <Label htmlFor="casualWaitlistEnabled" className="cursor-pointer">臨打報名時間</Label>
                         <p className="text-sm text-muted-foreground">設定活動開始前多久才開放臨打報名</p>
                       </div>
                       <Switch
@@ -494,22 +555,9 @@ export default function ClubNewActivity() {
             <Card>
               <CardHeader>
                 <CardTitle>進階設定</CardTitle>
-                <CardDescription>候補與計分模式設定</CardDescription>
+                <CardDescription>計分模式設定</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                {/* Waitlist */}
-                <div className="flex items-center justify-between p-4 rounded-lg bg-secondary">
-                  <div>
-                    <div className="font-medium text-foreground">候補機制</div>
-                    <div className="text-sm text-muted-foreground">額滿後自動開啟候補名單</div>
-                  </div>
-                  <Switch
-                    checked={activity.waitlistEnabled}
-                    onCheckedChange={(checked) => setActivity({ ...activity, waitlistEnabled: checked })}
-                  />
-                </div>
-
-
                 {/* Scoring Mode */}
                 <div className="flex items-center justify-between p-4 rounded-lg bg-secondary">
                   <div>
@@ -541,7 +589,7 @@ export default function ClubNewActivity() {
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1.5">
-                        <SportBadge sport={activity.sport} size="sm" />
+                        <SportBadge sport={sportValueToType[activity.sport] || "badminton"} size="sm" />
                         {activity.isCasualOpen && (
                           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary">
                             <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
@@ -600,9 +648,14 @@ export default function ClubNewActivity() {
                   className="w-full mt-6" 
                   size="lg"
                   onClick={handleSubmit}
-                  disabled={isSubmitting}
+                  disabled={createMatchMutation.isPending}
                 >
-                  {isSubmitting ? "建立中..." : "建立活動"}
+                  {createMatchMutation.isPending ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      建立中...
+                    </>
+                  ) : "建立活動"}
                 </Button>
               </CardContent>
             </Card>

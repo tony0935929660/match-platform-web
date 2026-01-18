@@ -21,7 +21,6 @@ const sitemapSections = [
     links: [
       { label: "首頁", href: "/", description: "網站首頁，瀏覽最新活動" },
       { label: "找活動", href: "/activities", description: "搜尋並參加各種運動活動" },
-      { label: "我的活動", href: "/my-activities", description: "查看已報名的活動" },
     ]
   },
   {

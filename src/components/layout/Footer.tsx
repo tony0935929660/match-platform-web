@@ -28,11 +28,6 @@ export function Footer() {
                 </Link>
               </li>
               <li>
-                <Link to="/my-activities" className="text-muted-foreground hover:text-foreground transition-colors">
-                  我的活動
-                </Link>
-              </li>
-              <li>
                 <Link to="/club" className="text-muted-foreground hover:text-foreground transition-colors">
                   球團管理
                 </Link>

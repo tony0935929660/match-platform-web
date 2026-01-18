@@ -11,12 +11,14 @@ export interface CreateMatchRequest {
   endDateTime: string;    // 結束日期時間 (ISO 8601)
   price: number;          // 費用
   unit: number;           // 計費單位 (1 = 每人)
-  groupId?: number | null; // 球團 ID (這裡不會用到)
+  groupId?: number | null; // 球團 ID
   requiredPeople: number; // 名額上限
   maxGrade: number;       // 等級上限
   minGrade: number;       // 等級下限
   remark?: string;        // 活動說明
-  isGuestPlayerAllowed?: boolean; // 是否允許訪客 (這裡不會用到)
+  isGuestPlayerAllowed?: boolean; // 是否開放臨打
+  guestPlayerJoinBeforeStartMinutes?: number; // 開放報名前時間（分鐘）
+  isScoreRecordEnabled?: boolean; // 計分模式是否開啟
 }
 
 // 活動回應
