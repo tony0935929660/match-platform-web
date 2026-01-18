@@ -133,6 +133,161 @@ export async function getGroup(id: number, token: string): Promise<GroupResponse
   return result as GroupResponse;
 }
 
+// 更新球團請求
+export interface UpdateGroupRequest {
+  name?: string;           // 球團名稱
+  sport?: number;          // 運動類型 (enum value)
+  description?: string;    // 球團簡介
+  court?: string;          // 活動地點
+  address?: string;        // 活動地址
+  phone?: string;          // 聯絡電話
+  email?: string;          // 電子郵件
+  websiteUrl?: string;     // 網站連結
+}
+
+/**
+ * 更新球團資料
+ */
+export async function updateGroup(token: string, id: number, data: UpdateGroupRequest): Promise<GroupResponse> {
+  const response = await fetch(`${API_BASE_URL}/api/groups/${id}`, {
+    method: "PUT",
+    headers: {
+      "Authorization": `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(data),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    let errorMessage = "更新球團失敗";
+    try {
+      const errorJson = JSON.parse(errorText);
+      errorMessage = errorJson.message || errorJson.title || errorMessage;
+    } catch {}
+    throw new Error(`${errorMessage} (${response.status})`);
+  }
+
+  const result = await response.json();
+  if (result.success !== undefined && result.data) {
+    return result.data as GroupResponse;
+  }
+  return result as GroupResponse;
+}
+
+/**
+ * 刪除球團
+ */
+export async function deleteGroup(token: string, id: number): Promise<boolean> {
+  const response = await fetch(`${API_BASE_URL}/api/groups/${id}`, {
+    method: "DELETE",
+    headers: {
+      "Authorization": `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    let errorMessage = "刪除球團失敗";
+    try {
+      const errorJson = JSON.parse(errorText);
+      errorMessage = errorJson.message || errorJson.title || errorMessage;
+    } catch {}
+    throw new Error(`${errorMessage} (${response.status})`);
+  }
+
+  const result = await response.json();
+  return result.success !== false;
+}
+
+// 成員回應
+export interface GroupMemberResponse {
+  userId: number;
+  userName: string;
+  lineName: string;
+  phone: string | null;
+  email: string | null;
+  role: number; // 1: Member, 2: Admin
+  joinedAt: string;
+}
+
+/**
+ * 取得球團成員列表
+ */
+export async function getGroupMembers(token: string, groupId: number): Promise<GroupMemberResponse[]> {
+  const response = await fetch(`${API_BASE_URL}/api/groups/${groupId}/members`, {
+    method: "GET",
+    headers: {
+      "Authorization": `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`取得成員列表失敗 (${response.status})`);
+  }
+
+  const result = await response.json();
+  if (result.success !== undefined && result.data) {
+    return result.data as GroupMemberResponse[];
+  }
+  return result as GroupMemberResponse[];
+}
+
+/**
+ * 更新成員角色
+ */
+export async function updateMemberRole(token: string, groupId: number, targetUserId: number, role: number): Promise<boolean> {
+  const response = await fetch(`${API_BASE_URL}/api/groups/${groupId}/members/${targetUserId}/role`, {
+    method: "PUT",
+    headers: {
+      "Authorization": `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ role }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    let errorMsg = `更新成員角色失敗 (${response.status})`;
+    try {
+      const errorJson = JSON.parse(errorText);
+      if (errorJson.message) errorMsg = errorJson.message;
+    } catch {}
+    throw new Error(errorMsg);
+  }
+
+  const result = await response.json();
+  return result.success !== false;
+}
+
+/**
+ * 移除成員
+ */
+export async function removeMember(token: string, groupId: number, targetUserId: number): Promise<boolean> {
+  const response = await fetch(`${API_BASE_URL}/api/groups/${groupId}/members/${targetUserId}`, {
+    method: "DELETE",
+    headers: {
+      "Authorization": `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    let errorMsg = `移除成員失敗 (${response.status})`;
+    try {
+      const errorJson = JSON.parse(errorText);
+      if (errorJson.message) errorMsg = errorJson.message;
+    } catch {}
+    throw new Error(errorMsg);
+  }
+
+  const result = await response.json();
+  return result.success !== false;
+}
+
 // 邀請連結回應
 export interface InviteLinkResponse {
   id: number;

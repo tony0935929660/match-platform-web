@@ -4,8 +4,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { SkillLevelBadge } from "@/components/ui/SkillLevelBadge";
-import { CreditBadge } from "@/components/ui/CreditBadge";
 import { ClubInviteDialog } from "@/components/ClubInviteDialog";
 import {
   DropdownMenu,
@@ -18,50 +16,62 @@ import {
   UserPlus,
   Search,
   MoreVertical,
-  Filter
+  Filter,
+  Loader2
 } from "lucide-react";
-import { Link } from "react-router-dom";
-
-const mockClub = {
-  id: "1",
-  name: "羽翔俱樂部",
-};
-
-const mockMembers = [
-  { id: "1", name: "王小明", level: 5, creditScore: 4.8, role: "admin", status: "active", paymentStatus: "paid", joinDate: "2023/03" },
-  { id: "2", name: "李大華", level: 4, creditScore: 4.5, role: "member", status: "active", paymentStatus: "paid", joinDate: "2023/05" },
-  { id: "3", name: "陳美玲", level: 4, creditScore: 4.2, role: "member", status: "active", paymentStatus: "pending", joinDate: "2023/06" },
-  { id: "4", name: "黃志強", level: 3, creditScore: 4.6, role: "member", status: "active", paymentStatus: "paid", joinDate: "2023/08" },
-  { id: "5", name: "林小芳", level: 5, creditScore: 4.9, role: "member", status: "active", paymentStatus: "paid", joinDate: "2023/09" },
-  { id: "6", name: "張明德", level: 3, creditScore: 3.8, role: "casual", status: "active", paymentStatus: "unpaid", joinDate: "2024/01" },
-  { id: "7", name: "周美麗", level: 4, creditScore: 4.3, role: "member", status: "active", paymentStatus: "paid", joinDate: "2024/02" },
-  { id: "8", name: "吳建國", level: 5, creditScore: 4.7, role: "member", status: "active", paymentStatus: "paid", joinDate: "2024/03" },
-];
+import { Link, useSearchParams } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { useAuth } from "@/contexts/AuthContext";
+import { getGroup, getGroupMembers, GroupMemberResponse } from "@/services/groupApi";
 
 export default function ClubMembers() {
+  const [searchParams] = useSearchParams();
+  const groupId = searchParams.get("groupId") || "";
+  const { token } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
+
+  // 獲取球團詳情
+  const { data: club } = useQuery({
+    queryKey: ['groupDetail', groupId],
+    queryFn: () => getGroup(Number(groupId), token!),
+    enabled: !!token && !!groupId,
+  });
+
+  // 獲取成員列表
+  const { data: members = [], isLoading: isLoadingMembers } = useQuery({
+    queryKey: ['groupMembers', groupId],
+    queryFn: () => getGroupMembers(token!, Number(groupId)),
+    enabled: !!token && !!groupId,
+  });
   
-  const filteredMembers = mockMembers.filter(member => 
-    member.name.includes(searchQuery)
+  const filteredMembers = members.filter((member: GroupMemberResponse) => 
+    member.userName?.includes(searchQuery) || member.lineName?.includes(searchQuery)
   );
+
+  // 格式化加入日期
+  const formatJoinDate = (dateString: string) => {
+    if (!dateString) return "";
+    const date = new Date(dateString);
+    return `${date.getFullYear()}/${String(date.getMonth() + 1).padStart(2, '0')}`;
+  };
 
   return (
     <MainLayout>
       <div className="container py-6 md:py-8">
         {/* Header */}
         <div className="flex items-center gap-4 mb-6">
-          <Link to="/club">
+          <Link to={`/club?groupId=${groupId}`}>
             <Button variant="ghost" size="icon">
               <ArrowLeft className="h-5 w-5" />
             </Button>
           </Link>
           <div className="flex-1">
             <h1 className="text-2xl md:text-3xl font-bold text-foreground">成員管理</h1>
-            <p className="text-muted-foreground mt-1">管理球團所有成員</p>
+            <p className="text-muted-foreground mt-1">管理{club?.name || "球團"}所有成員</p>
           </div>
           <ClubInviteDialog 
-            clubId={mockClub.id} 
-            clubName={mockClub.name}
+            clubId={groupId} 
+            clubName={club?.name || "球團"}
             trigger={
               <Button className="gap-2">
                 <UserPlus className="h-4 w-4" />
@@ -75,14 +85,14 @@ export default function ClubMembers() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
           <Card>
             <CardContent className="p-4">
-              <div className="text-2xl font-bold text-foreground">{mockMembers.length}</div>
+              <div className="text-2xl font-bold text-foreground">{members.length}</div>
               <div className="text-sm text-muted-foreground">總成員</div>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="p-4">
               <div className="text-2xl font-bold text-foreground">
-                {mockMembers.filter(m => m.role === "admin").length}
+                {members.filter((m: GroupMemberResponse) => m.role === 2).length}
               </div>
               <div className="text-sm text-muted-foreground">管理員</div>
             </CardContent>
@@ -90,17 +100,15 @@ export default function ClubMembers() {
           <Card>
             <CardContent className="p-4">
               <div className="text-2xl font-bold text-foreground">
-                {mockMembers.filter(m => m.paymentStatus === "paid").length}
+                {members.filter((m: GroupMemberResponse) => m.role === 1).length}
               </div>
-              <div className="text-sm text-muted-foreground">已繳費</div>
+              <div className="text-sm text-muted-foreground">一般成員</div>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="p-4">
-              <div className="text-2xl font-bold text-warning">
-                {mockMembers.filter(m => m.paymentStatus !== "paid").length}
-              </div>
-              <div className="text-sm text-muted-foreground">待繳費</div>
+              <div className="text-2xl font-bold text-foreground">-</div>
+              <div className="text-sm text-muted-foreground">待確認</div>
             </CardContent>
           </Card>
         </div>
@@ -128,48 +136,57 @@ export default function ClubMembers() {
             <CardTitle>所有成員 ({filteredMembers.length})</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-3">
-              {filteredMembers.map((member) => (
-                <div key={member.id} className="flex items-center justify-between p-4 rounded-lg bg-secondary">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                      <span className="font-medium text-primary">{member.name[0]}</span>
+            {isLoadingMembers ? (
+              <div className="flex justify-center py-8">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              </div>
+            ) : filteredMembers.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                {searchQuery ? "找不到符合的成員" : "目前沒有成員"}
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {filteredMembers.map((member: GroupMemberResponse) => (
+                  <div key={member.userId} className="flex items-center justify-between p-4 rounded-lg bg-secondary">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                        <span className="font-medium text-primary">{member.userName?.[0] || "?"}</span>
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium text-foreground">{member.userName || member.lineName || "未知用戶"}</span>
+                          <Badge variant={member.role === 2 ? "default" : "secondary"}>
+                            {member.role === 2 ? "管理員" : "成員"}
+                          </Badge>
+                        </div>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="text-xs text-muted-foreground">
+                            {member.phone || member.email || "未提供聯絡資訊"}
+                          </span>
+                          {member.joinedAt && (
+                            <span className="text-xs text-muted-foreground">• 加入於 {formatJoinDate(member.joinedAt)}</span>
+                          )}
+                        </div>
+                      </div>
                     </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium text-foreground">{member.name}</span>
-                        <Badge variant={member.role === "admin" ? "default" : member.role === "casual" ? "outline" : "secondary"}>
-                          {member.role === "admin" ? "管理員" : member.role === "casual" ? "臨打" : "成員"}
-                        </Badge>
-                      </div>
-                      <div className="flex items-center gap-2 mt-1">
-                        <SkillLevelBadge level={member.level} size="sm" />
-                        <CreditBadge score={member.creditScore} confidence="high" size="sm" />
-                        <span className="text-xs text-muted-foreground">加入於 {member.joinDate}</span>
-                      </div>
+                    <div className="flex items-center gap-2">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon">
+                            <MoreVertical className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem>查看資料</DropdownMenuItem>
+                          <DropdownMenuItem>調整權限</DropdownMenuItem>
+                          <DropdownMenuItem className="text-destructive">移除成員</DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Badge variant={member.paymentStatus === "paid" ? "default" : member.paymentStatus === "pending" ? "secondary" : "destructive"}>
-                      {member.paymentStatus === "paid" ? "已繳費" : member.paymentStatus === "pending" ? "待確認" : "未繳費"}
-                    </Badge>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon">
-                          <MoreVertical className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem>查看資料</DropdownMenuItem>
-                        <DropdownMenuItem>調整權限</DropdownMenuItem>
-                        <DropdownMenuItem>調整費率</DropdownMenuItem>
-                        <DropdownMenuItem className="text-destructive">移除成員</DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>

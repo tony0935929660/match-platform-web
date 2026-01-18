@@ -6,9 +6,10 @@ import { SportBadge, SportType } from "@/components/ui/SportBadge";
 import { CreditBadge } from "@/components/ui/CreditBadge";
 import { SkillLevelBadge } from "@/components/ui/SkillLevelBadge";
 import { ClubInviteDialog } from "@/components/ClubInviteDialog";
+import { ClubSettingsDialog } from "@/components/ClubSettingsDialog";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
-import { getGroups } from "@/services/groupApi";
+import { getGroups, getGroupMembers, GroupResponse, GroupMemberResponse } from "@/services/groupApi";
 import { Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { 
@@ -126,6 +127,13 @@ export default function ClubDashboard() {
   });
 
   const currentClub = groups?.[0];
+
+  // Fetch members when we have a club
+  const { data: members = [] } = useQuery<GroupMemberResponse[]>({
+    queryKey: ['groupMembers', currentClub?.id],
+    queryFn: () => getGroupMembers(token!, currentClub!.id),
+    enabled: !!token && !!currentClub,
+  });
   
   const displayClub = currentClub ? {
     id: currentClub.id.toString(),
@@ -188,9 +196,16 @@ export default function ClubDashboard() {
                 </Button>
               }
             />
-            <Button variant="outline" size="icon">
-              <Settings className="h-4 w-4" />
-            </Button>
+            {currentClub && (
+              <ClubSettingsDialog 
+                club={currentClub}
+                trigger={
+                  <Button variant="outline" size="icon">
+                    <Settings className="h-4 w-4" />
+                  </Button>
+                }
+              />
+            )}
           </div>
         </div>
 
@@ -363,7 +378,7 @@ export default function ClubDashboard() {
                   <div className="flex items-center justify-between">
                     <CardTitle>成員管理</CardTitle>
                     <div className="flex gap-2">
-                      <Link to="/club/members">
+                      <Link to={`/club/members?groupId=${displayClub.id}`}>
                         <Button variant="outline" size="sm" className="gap-2">
                           查看全部
                           <ChevronRight className="h-4 w-4" />
@@ -384,29 +399,29 @@ export default function ClubDashboard() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
-                    {mockMembers.map((member) => (
-                      <div key={member.id} className="flex items-center justify-between p-4 rounded-lg bg-secondary">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                            <span className="font-medium text-primary">{member.name[0]}</span>
-                          </div>
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <span className="font-medium text-foreground">{member.name}</span>
-                              <Badge variant={member.role === "admin" ? "default" : member.role === "casual" ? "outline" : "secondary"}>
-                                {member.role === "admin" ? "管理員" : member.role === "casual" ? "臨打" : "成員"}
-                              </Badge>
+                    {members.length === 0 ? (
+                      <div className="text-center py-8 text-muted-foreground">
+                        目前沒有成員
+                      </div>
+                    ) : (
+                      members.slice(0, 5).map((member) => (
+                        <div key={member.userId} className="flex items-center justify-between p-4 rounded-lg bg-secondary">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                              <span className="font-medium text-primary">{member.userName[0]}</span>
                             </div>
-                            <div className="flex items-center gap-2 mt-1">
-                              <SkillLevelBadge level={member.level} size="sm" />
-                              <CreditBadge score={member.creditScore} confidence="high" size="sm" />
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <span className="font-medium text-foreground">{member.userName}</span>
+                                <Badge variant={member.role === 2 ? "default" : "secondary"}>
+                                  {member.role === 2 ? "管理員" : "成員"}
+                                </Badge>
+                              </div>
+                              <div className="text-sm text-muted-foreground mt-1">
+                                {member.phone || member.email || "未提供聯絡資訊"}
+                              </div>
                             </div>
                           </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Badge variant={member.paymentStatus === "paid" ? "default" : member.paymentStatus === "pending" ? "secondary" : "destructive"}>
-                            {member.paymentStatus === "paid" ? "已繳費" : member.paymentStatus === "pending" ? "待確認" : "未繳費"}
-                          </Badge>
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                               <Button variant="ghost" size="icon">
@@ -416,13 +431,12 @@ export default function ClubDashboard() {
                             <DropdownMenuContent align="end">
                               <DropdownMenuItem>查看資料</DropdownMenuItem>
                               <DropdownMenuItem>調整權限</DropdownMenuItem>
-                              <DropdownMenuItem>調整費率</DropdownMenuItem>
                               <DropdownMenuItem className="text-destructive">移除成員</DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </div>
-                      </div>
-                    ))}
+                      ))
+                    )}
                   </div>
                 </CardContent>
               </Card>
