@@ -22,6 +22,37 @@ export interface BillingUnitEnum {
   displayName: string;
 }
 
+// 付款類型枚舉
+export interface PaymentTypeEnum {
+  value: number;
+  name: string;
+  displayName: string;
+}
+
+/**
+ * 取得付款類型列表
+ */
+export async function getPaymentTypes(): Promise<PaymentTypeEnum[]> {
+  const response = await fetch(`${API_BASE_URL}/api/enums/payment-types`, {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`取得付款類型失敗 (${response.status})`);
+  }
+
+  const result = await response.json();
+  
+  // 處理包裝格式
+  if (result.success !== undefined && result.data) {
+    return result.data as PaymentTypeEnum[];
+  }
+  return result as PaymentTypeEnum[];
+}
+
 /**
  * 取得計費單位列表
  */

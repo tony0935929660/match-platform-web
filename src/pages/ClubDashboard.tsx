@@ -9,7 +9,8 @@ import { ClubInviteDialog } from "@/components/ClubInviteDialog";
 import { ClubSettingsDialog } from "@/components/ClubSettingsDialog";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
-import { getGroups, getGroupMembers, GroupResponse, GroupMemberResponse } from "@/services/groupApi";
+import { getGroups, getGroupMembers, getGroupPayments, GroupResponse, GroupMemberResponse, PaymentResponse } from "@/services/groupApi";
+import { getPaymentTypes, PaymentTypeEnum } from "@/services/enumApi";
 import { Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { 
@@ -94,12 +95,6 @@ const mockMembers = [
   { id: "4", name: "黃志強", level: 3, creditScore: 4.6, role: "member", status: "active", paymentStatus: "paid" },
 ];
 
-const mockPayments = [
-  { id: "1", userName: "陳美玲", type: "single", amount: 150, date: "2024/12/09", status: "pending", proof: true },
-  { id: "2", userName: "張明德", type: "single", amount: 180, date: "2024/12/09", status: "unpaid", proof: false },
-  { id: "3", userName: "李大華", type: "season", amount: 2400, date: "2024/11/01", status: "paid", proof: true },
-];
-
 const mockScores = [
   { id: "1", date: "2024/12/04", player1: "王小明", player2: "李大華", score1: 21, score2: 18 },
   { id: "2", date: "2024/12/04", player1: "陳美玲", player2: "黃志強", score1: 21, score2: 15 },
@@ -133,6 +128,19 @@ export default function ClubDashboard() {
     queryKey: ['groupMembers', currentClub?.id],
     queryFn: () => getGroupMembers(token!, currentClub!.id),
     enabled: !!token && !!currentClub,
+  });
+
+  // Fetch payments when we have a club
+  const { data: payments = [] } = useQuery<PaymentResponse[]>({
+    queryKey: ['groupPayments', currentClub?.id],
+    queryFn: () => getGroupPayments(token!, currentClub!.id),
+    enabled: !!token && !!currentClub,
+  });
+
+  // Fetch payment types
+  const { data: paymentTypes = [] } = useQuery<PaymentTypeEnum[]>({
+    queryKey: ['paymentTypes'],
+    queryFn: getPaymentTypes,
   });
   
   const displayClub = currentClub ? {
@@ -470,56 +478,64 @@ export default function ClubDashboard() {
                   <div className="flex items-center justify-between">
                     <CardTitle>收款紀錄</CardTitle>
                     <div className="flex gap-2">
-                      <Link to="/club/payments">
+                      <Link to={`/club/payments?groupId=${displayClub.id}`}>
                         <Button variant="outline" size="sm" className="gap-2">
                           查看全部
                           <ChevronRight className="h-4 w-4" />
                         </Button>
                       </Link>
-                      <Button variant="outline" size="sm" className="gap-2">
-                        <Plus className="h-4 w-4" />
-                        新增季繳方案
-                      </Button>
                     </div>
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-3">
-                    {mockPayments.map((payment) => (
-                      <div key={payment.id} className="flex items-center justify-between p-4 rounded-lg bg-secondary">
-                        <div className="flex-1">
-                          <div className="font-medium text-foreground">{payment.userName}</div>
-                          <div className="text-sm text-muted-foreground">{payment.date}</div>
-                        </div>
-                        <div className="flex items-center gap-4">
-                          <Badge variant={payment.type === "season" ? "default" : "secondary"}>
-                            {payment.type === "season" ? "季繳" : "單次"}
-                          </Badge>
-                          <div className="text-right min-w-[80px]">
-                            <div className="font-semibold">${payment.amount}</div>
-                          </div>
-                          {payment.status === "pending" && (
-                            <div className="flex gap-2">
-                              <Button size="sm" variant="outline" className="gap-1">
-                                <CheckCircle className="h-3 w-3" />
-                                確認
-                              </Button>
-                              <Button size="sm" variant="ghost" className="gap-1 text-destructive">
-                                <XCircle className="h-3 w-3" />
-                                拒絕
-                              </Button>
+                  {payments.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">目前沒有繳費紀錄</div>
+                  ) : (
+                    <div className="space-y-3">
+                      {payments.slice(0, 5).map((payment: PaymentResponse) => {
+                        const paymentTypeName = paymentTypes.find(t => t.value === payment.paymentType)?.displayName || payment.paymentTypeName || "未知";
+                        const formatDate = (dateString: string) => {
+                          if (!dateString) return "";
+                          const date = new Date(dateString);
+                          return `${date.getFullYear()}/${String(date.getMonth() + 1).padStart(2, '0')}/${String(date.getDate()).padStart(2, '0')}`;
+                        };
+                        return (
+                          <div key={payment.id} className="flex items-center justify-between p-4 rounded-lg bg-secondary">
+                            <div className="flex-1">
+                              <div className="font-medium text-foreground">{payment.userName}</div>
+                              <div className="text-sm text-muted-foreground">{formatDate(payment.paymentDate)}</div>
                             </div>
-                          )}
-                          {payment.status === "paid" && (
-                            <Badge variant="outline" className="text-primary border-primary">已確認</Badge>
-                          )}
-                          {payment.status === "unpaid" && (
-                            <Badge variant="destructive">未繳費</Badge>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                            <div className="flex items-center gap-4">
+                              <Badge variant="secondary">
+                                {paymentTypeName}
+                              </Badge>
+                              <div className="text-right min-w-[80px]">
+                                <div className="font-semibold">${payment.amount.toLocaleString()}</div>
+                              </div>
+                              {payment.status === 1 && (
+                                <div className="flex gap-2">
+                                  <Button size="sm" variant="outline" className="gap-1">
+                                    <CheckCircle className="h-3 w-3" />
+                                    確認
+                                  </Button>
+                                  <Button size="sm" variant="ghost" className="gap-1 text-destructive">
+                                    <XCircle className="h-3 w-3" />
+                                    拒絕
+                                  </Button>
+                                </div>
+                              )}
+                              {payment.status === 2 && (
+                                <Badge variant="outline" className="text-primary border-primary">已確認</Badge>
+                              )}
+                              {payment.status === 0 && (
+                                <Badge variant="destructive">未繳費</Badge>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </TabsContent>

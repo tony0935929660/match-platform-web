@@ -387,3 +387,83 @@ export async function addMemberToGroup(token: string, groupId: string, userPubli
   return result.success;
 }
 
+// 繳費紀錄請求
+export interface CreatePaymentRequest {
+  userId: number;
+  paymentType: number;
+  amount: number;
+  remark?: string;
+  paymentDate?: string;
+  startDate?: string;
+  endDate?: string;
+}
+
+// 繳費紀錄回應
+export interface PaymentResponse {
+  id: number;
+  userId: number;
+  userName: string;
+  paymentType: number;
+  paymentTypeName: string;
+  amount: number;
+  remark: string | null;
+  paymentDate: string;
+  startDate: string | null;
+  endDate: string | null;
+  status: number;
+  statusName: string;
+  createdAt: string;
+}
+
+/**
+ * 新增繳費紀錄
+ */
+export async function createPayment(token: string, groupId: number, data: CreatePaymentRequest): Promise<PaymentResponse> {
+  const response = await fetch(`${API_BASE_URL}/api/groups/${groupId}/payments`, {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(data),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    let errorMsg = `新增繳費紀錄失敗 (${response.status})`;
+    try {
+      const errorJson = JSON.parse(errorText);
+      if (errorJson.message) errorMsg = errorJson.message;
+    } catch {}
+    throw new Error(errorMsg);
+  }
+
+  const result = await response.json();
+  if (result.success !== undefined && result.data) {
+    return result.data as PaymentResponse;
+  }
+  return result as PaymentResponse;
+}
+
+/**
+ * 取得球團繳費紀錄列表
+ */
+export async function getGroupPayments(token: string, groupId: number): Promise<PaymentResponse[]> {
+  const response = await fetch(`${API_BASE_URL}/api/groups/${groupId}/payments`, {
+    method: "GET",
+    headers: {
+      "Authorization": `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`取得繳費紀錄失敗 (${response.status})`);
+  }
+
+  const result = await response.json();
+  if (result.success !== undefined && result.data) {
+    return result.data as PaymentResponse[];
+  }
+  return result as PaymentResponse[];
+}
