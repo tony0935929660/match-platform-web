@@ -166,7 +166,7 @@ export async function loginWithCode(code: string): Promise<BackendAuthResponse> 
   console.log("Redirect URI:", redirectUri);
   console.log("Authorization Code:", code ? `${code.substring(0, 10)}...` : "MISSING!");
   
-  const response = await fetch(`${apiBaseUrl}/api/auth/line-callback`, {
+  const response = await fetch(`${apiBaseUrl}/api/auth/line-login`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
