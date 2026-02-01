@@ -93,17 +93,17 @@ export async function getLineProfile(accessToken: string): Promise<LineProfile> 
 /**
  * 呼叫後端 API 進行登入驗證
  */
-export async function loginWithBackend(accessToken: string): Promise<BackendAuthResponse> {
+export async function loginWithBackend(code: string, redirectUri: string): Promise<BackendAuthResponse> {
   const apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
   
-  console.log("Calling backend API with access token:", accessToken.substring(0, 20) + "...");
+  console.log("Calling backend API with code...");
   
   const response = await fetch(`${apiBaseUrl}/api/auth/line-login`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ accessToken }),
+    body: JSON.stringify({ code, redirectUri }),
   });
 
   if (!response.ok) {
@@ -149,25 +149,25 @@ export function createUserFromBackendResponse(response: BackendAuthResponse): Us
  * 完整的 LINE 登入流程
  */
 export async function processLineCallback(code: string): Promise<{ user: User; token: string }> {
-  // 1. 交換授權碼獲取 Access Token
-  console.log("Step 1: Exchanging code for token...");
-  const tokenResponse = await exchangeCodeForToken(code);
-  console.log("Access token obtained:", tokenResponse.access_token.substring(0, 20) + "...");
+  /*
+   * 修改說明：
+   * 原本流程是在前端換取 access token，然後傳給後端。
+   * 但後端 API (api/auth/line-login) 要求傳入 code 和 redirectUri，
+   * 表示後端會自行執行 authorization code flow 來換取 access token。
+   * 因此這裡只需將 code 傳給後端即可。
+   */
   
-  // 2. 先在前端驗證 token 是否有效（測試用）
-  console.log("Step 2: Verifying token with LINE Profile API...");
-  const profile = await getLineProfile(tokenResponse.access_token);
-  console.log("LINE Profile verified:", profile);
-  
-  // 3. 呼叫後端 API 進行登入
-  console.log("Step 3: Calling backend API...");
-  const backendResponse = await loginWithBackend(tokenResponse.access_token);
+  const redirectUri = import.meta.env.VITE_LINE_REDIRECT_URI || `${window.location.origin}/auth/line/callback`;
+
+  // 呼叫後端 API 進行登入
+  console.log("Calling backend API for LINE login...");
+  const backendResponse = await loginWithBackend(code, redirectUri);
   
   if (!backendResponse.success) {
     throw new Error(backendResponse.message || "登入失敗");
   }
   
-  // 4. 建立應用程式用戶
+  // 建立應用程式用戶
   const user = createUserFromBackendResponse(backendResponse);
   
   return {
