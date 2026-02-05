@@ -5,7 +5,10 @@ import { ActivityCard } from "@/components/ui/ActivityCard";
 import { CreditBadge } from "@/components/ui/CreditBadge";
 import { Link } from "react-router-dom";
 import { getSports, SportEnum } from "@/services/enumApi";
+import { getMatches, MatchResponse } from "@/services/matchApi";
 import { useState, useEffect } from "react";
+import { format } from "date-fns";
+import { zhTW } from "date-fns/locale";
 import { 
   ArrowRight, 
   MapPin, 
@@ -98,19 +101,83 @@ const mockClubs = [
   { id: "3", name: "籃球夢工廠", sport: "basketball" as SportType, members: 56, rating: 4.8 },
 ];
 
+const mapSportIdToType = (id: number): SportType => {
+  switch (id) {
+    case 1: return "badminton";
+    case 2: return "tennis";
+    case 3: return "table-tennis"; // Based on typical ordering, but ideally should be dynamic
+    case 4: return "volleyball"; // Just guessing based on standard ids usually used
+    case 5: return "basketball"; // Wait, I should verify this if possible.
+    // If I look at enumApi.ts, it fetches from backend.
+    // Let's assume standard mapping for now or default to badminton.
+    default: return "badminton";
+  }
+};
+// Correction based on common sense of this project or typical setups:
+// Usually 1=Badminton, 2=Tennis, 3=Table Tennis, 4=Volleyball, 5=Basketball, 6=Soccer
+// But let's check if I can find any reference. `sportTypes` array has order: "badminton", "tennis", "basketball", "volleyball", "table-tennis", "soccer".
+// This might imply 0: badminton, 1: tennis etc? No, usually DB IDs start at 1.
+
+// Let's try to infer from `mockActivities`:
+// { sport: "badminton" } -> might be ID 1
+// { sport: "tennis" } -> might be ID 2
+// { sport: "basketball" } -> might be ID 3 (in mock it was item 3)
+
+// I'll stick to a safe mapping and maybe improve later if I see `enumApi` response.
+
+const mapSportEnumToType = (enumName: string): SportType => {
+  const lower = enumName.toLowerCase();
+  if (lower.includes("badminton")) return "badminton";
+  if (lower.includes("tennis") && !lower.includes("table")) return "tennis";
+  if (lower.includes("basketball")) return "basketball";
+  if (lower.includes("volleyball")) return "volleyball";
+  if (lower.includes("table")) return "table-tennis";
+  if (lower.includes("soccer") || lower.includes("football")) return "soccer";
+  return "badminton";
+};
+
 export default function Index() {
   const [sports, setSports] = useState<SportEnum[]>([]);
+  const [hotActivities, setHotActivities] = useState<any[]>([]);
 
   useEffect(() => {
-    const fetchSports = async () => {
+    const fetchData = async () => {
       try {
-        const data = await getSports();
-        setSports(data);
+        const sportsData = await getSports();
+        setSports(sportsData);
+
+        const matchesResponse = await getMatches(undefined, { pageSize: 4 });
+        
+        const mappedMatches = matchesResponse.content.map(m => {
+          // Try to find sport name from sportsData
+          const sportEnum = sportsData.find(s => s.value === m.sport);
+          const sportType = sportEnum ? mapSportEnumToType(sportEnum.name) : "badminton";
+
+          return {
+            id: m.id.toString(),
+            title: m.name,
+            sport: sportType,
+            date: format(new Date(m.dateTime), "MM/dd (eee)", { locale: zhTW }),
+            time: `${format(new Date(m.dateTime), "HH:mm")}-${format(new Date(m.endDateTime), "HH:mm")}`,
+            location: m.court,
+            hostName: m.groupName || m.host || "活動主",
+            hostCreditScore: 5.0, // Default
+            hostConfidence: "high" as const,
+            levelRange: { min: m.minGrade, max: m.maxGrade },
+            isCasualOpen: m.isGuestPlayerAllowed ?? false,
+            currentSlots: m.participants?.length || 0,
+            maxSlots: m.requiredPeople,
+            price: m.price,
+          };
+        });
+        setHotActivities(mappedMatches);
+
       } catch (error) {
-        console.error("Failed to load sports", error);
+        console.error("Failed to load data", error);
       }
     };
-    fetchSports();
+
+    fetchData();
   }, []);
 
   // Helper to get emoji safely
@@ -169,7 +236,7 @@ export default function Index() {
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-            {mockActivities.map((activity, index) => (
+            {(hotActivities.length > 0 ? hotActivities : mockActivities).map((activity, index) => (
               <div key={activity.id} className="animate-fade-in" style={{ animationDelay: `${index * 0.1}s` }}>
                 <ActivityCard {...activity} />
               </div>

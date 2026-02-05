@@ -135,6 +135,15 @@ export default function ClubNewActivity() {
       return;
     }
 
+    if (!activity.unlimitedSlots && (!activity.maxSlots || activity.maxSlots <= 0)) {
+        toast({
+          title: "請設定人數上限",
+          description: "若未勾選無上限，請輸入有效的人數",
+          variant: "destructive",
+        });
+        return;
+    }
+
     // Build dateTime from date + startTime
     const dateTime = `${activity.date}T${activity.startTime || "00:00"}:00`;
     const endDateTime = `${activity.date}T${activity.endTime || "23:59"}:00`;
@@ -150,7 +159,7 @@ export default function ClubNewActivity() {
       price: activity.price,
       unit: 1, // 固定每人
       groupId: currentGroup.id,
-      requiredPeople: activity.unlimitedSlots ? 0 : activity.maxSlots,
+      requiredPeople: activity.unlimitedSlots ? null : activity.maxSlots,
       maxGrade: activity.levelMax,
       minGrade: activity.levelMin,
       remark: activity.description || undefined,

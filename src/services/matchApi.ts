@@ -12,7 +12,7 @@ export interface CreateMatchRequest {
   price: number;          // 費用
   unit: number;           // 計費單位 (1 = 每人)
   groupId?: number | null; // 球團 ID
-  requiredPeople: number; // 名額上限
+  requiredPeople: number | null; // 名額上限
   maxGrade: number;       // 等級上限
   minGrade: number;       // 等級下限
   remark?: string;        // 活動說明

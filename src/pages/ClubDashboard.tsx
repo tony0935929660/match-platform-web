@@ -345,13 +345,16 @@ export default function ClubDashboard() {
                       <div className="flex items-center gap-1.5 justify-end">
                         <Users className="h-4 w-4 text-muted-foreground" />
                         <span className="font-semibold text-foreground">
-                          {activity.participants?.length || 0}/{activity.requiredPeople}
+                          {activity.participants?.length || 0}
+                          {activity.requiredPeople ? `/${activity.requiredPeople}` : " 人"}
                         </span>
                       </div>
                       <div className="text-xs text-muted-foreground">
-                        {activity.requiredPeople - (activity.participants?.length || 0) > 0 
-                          ? `剩餘 ${activity.requiredPeople - (activity.participants?.length || 0)} 位`
-                          : "已額滿"
+                        {!activity.requiredPeople 
+                          ? "無名額限制" 
+                          : activity.requiredPeople - (activity.participants?.length || 0) > 0 
+                            ? `剩餘 ${activity.requiredPeople - (activity.participants?.length || 0)} 位`
+                            : "已額滿"
                         }
                       </div>
                     </div>
