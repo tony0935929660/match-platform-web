@@ -68,7 +68,7 @@ export async function createGroup(token: string, data: CreateGroupRequest): Prom
       }
     }
     
-    throw new Error(`${errorMessage} (${response.status})`);
+    throw new Error(errorMessage);
   }
 
   const result = await response.json();
@@ -94,7 +94,7 @@ export async function getGroups(token: string): Promise<GroupResponse[]> {
   });
 
   if (!response.ok) {
-    throw new Error(`取得球團列表失敗 (${response.status})`);
+    throw new Error("取得球團列表失敗");
   }
 
   const result = await response.json();
@@ -120,7 +120,7 @@ export async function getGroup(id: number, token: string): Promise<GroupResponse
   });
 
   if (!response.ok) {
-    throw new Error(`取得球團詳情失敗 (${response.status})`);
+    throw new Error("取得球團詳情失敗");
   }
 
   const result = await response.json();
@@ -250,7 +250,7 @@ export async function updateMemberRole(token: string, groupId: number, targetUse
 
   if (!response.ok) {
     const errorText = await response.text();
-    let errorMsg = `更新成員角色失敗 (${response.status})`;
+    let errorMsg = "更新成員角色失敗";
     try {
       const errorJson = JSON.parse(errorText);
       if (errorJson.message) errorMsg = errorJson.message;
@@ -276,7 +276,7 @@ export async function removeMember(token: string, groupId: number, targetUserId:
 
   if (!response.ok) {
     const errorText = await response.text();
-    let errorMsg = `移除成員失敗 (${response.status})`;
+    let errorMsg = "移除成員失敗";
     try {
       const errorJson = JSON.parse(errorText);
       if (errorJson.message) errorMsg = errorJson.message;
@@ -326,10 +326,22 @@ export async function createInviteLink(token: string, groupId: string, data?: Cr
   });
 
   if (!response.ok) {
-    throw new Error(`建立邀請連結失敗 (${response.status})`);
+    const errorText = await response.text();
+    console.error("Create invite link error:", response.status, errorText);
+    
+    let errorMessage = "建立邀請連結失敗";
+    try {
+      const errorJson = JSON.parse(errorText);
+      errorMessage = errorJson.message || errorJson.title || errorMessage;
+    } catch {
+      if (errorText) errorMessage = errorText;
+    }
+    
+    throw new Error(errorMessage);
   }
 
   const result = await response.json();
+  // 處理包裝格式
   if (result.success !== undefined && result.data) {
     return result.data as InviteLinkResponse;
   }
@@ -346,16 +358,44 @@ export async function joinGroupByLink(token: string, inviteCode: string): Promis
       "Authorization": `Bearer ${token}`,
       "Content-Type": "application/json",
     },
+    // 後端要求 { "inviteCode": "..." }
     body: JSON.stringify({ inviteCode }),
   });
 
   if (!response.ok) {
     const errorText = await response.text();
-    throw new Error(`加入球團失敗 (${response.status}): ${errorText}`);
+    console.error("Join group error:", response.status, errorText);
+    
+    let errorMessage = "加入球團失敗";
+    try {
+        const errorJson = JSON.parse(errorText);
+        // 如果有 message 並且是明確的業務錯誤訊息，直接使用
+        if (errorJson.message) {
+            errorMessage = errorJson.message;
+        } else {
+            errorMessage = errorJson.title || errorMessage;
+        }
+    } catch {
+        if (errorText) errorMessage = errorText;
+    }
+    
+    // 如果是 409 Conflict (e.g. 已加入)，通常 message 已經很清楚，不需要加上 status code
+    if (response.status === 409) {
+         throw new Error(errorMessage);
+    }
+    
+    throw new Error(errorMessage);
   }
 
   const result = await response.json();
-  return result.success;
+  
+  if (result.success !== undefined) {
+      if (!result.success) {
+          throw new Error(result.message || "加入失敗");
+      }
+      return result.success;
+  }
+  return true;
 }
 
 /**

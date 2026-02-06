@@ -3,6 +3,7 @@ import { useSearchParams, useNavigate } from "react-router-dom";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useAuth } from "@/contexts/AuthContext";
 import { SportEnum, AreaEnum, getSports, getAreas } from "@/services/enumApi";
 import { MatchResponse, getMatches } from "@/services/matchApi";
 import { ActivityCard } from "@/components/ui/ActivityCard";
@@ -34,6 +35,7 @@ import { format } from "date-fns";
 export default function Activities() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
+  const { token } = useAuth();
   
   // Data State
   const [sports, setSports] = useState<SportEnum[]>([]);
@@ -100,7 +102,7 @@ export default function Activities() {
         if (selectedDate) params.date = new Date(selectedDate).toISOString();
         if (searchQuery) params.keyword = searchQuery;
 
-        const data = await getMatches(undefined, params);
+        const data = await getMatches(token || undefined, params);
         if (data && data.content) {
             // Filter out past activities
             const now = new Date();
@@ -133,7 +135,7 @@ export default function Activities() {
     }, 300);
 
     return () => clearTimeout(timer);
-  }, [selectedSport, selectedArea, selectedDate, searchQuery]);
+  }, [selectedSport, selectedArea, selectedDate, searchQuery, token]);
 
   // Update URL helpers
   const updateFilters = (key: string, value: string | null) => {
@@ -204,12 +206,12 @@ export default function Activities() {
         date: dateStr,
         time: timeStr,
         location: match.court || match.address,
-        hostName: "主辦人", // API missing
+        hostName: match.groupName || match.host || "活動主",
         hostCreditScore: 5.0, // API missing
         hostConfidence: "high" as const, // API missing
         levelRange: { min: match.minGrade, max: match.maxGrade },
         isCasualOpen: match.isGuestPlayerAllowed ?? false,
-        currentSlots: 0, // API missing
+        currentSlots: match.participants?.length || 0,
         maxSlots: match.requiredPeople,
         price: match.price
     };

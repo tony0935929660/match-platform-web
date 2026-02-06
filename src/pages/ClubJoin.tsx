@@ -25,11 +25,14 @@ export default function ClubJoin() {
       navigate("/club");
     },
     onError: (error) => {
+        // If user is already a member or other error, handle it gracefully
       toast({
         title: "加入失敗",
         description: error.message,
         variant: "destructive",
       });
+      // Maybe navigate to club page anyway if they are already partial member?
+      // Or stay here to let them retry?
     }
   });
 
@@ -45,7 +48,7 @@ export default function ClubJoin() {
         <div className="container flex flex-col items-center justify-center min-h-[60vh] gap-4">
           <h1 className="text-2xl font-bold">請先登入</h1>
           <p className="text-muted-foreground">您需要登入才能加入球團</p>
-          <Button onClick={login}>前往登入</Button>
+          <Button onClick={() => login(window.location.pathname)}>前往登入</Button>
         </div>
       </MainLayout>
     );

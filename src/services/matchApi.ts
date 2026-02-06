@@ -62,7 +62,7 @@ export async function getMatch(token: string, id: string): Promise<MatchResponse
   });
 
   if (!response.ok) {
-    throw new Error(`取得活動詳情失敗 (${response.status})`);
+    throw new Error("取得活動詳情失敗");
   }
 
   const result = await response.json();
@@ -109,7 +109,7 @@ export async function createMatch(token: string, data: CreateMatchRequest): Prom
       }
     }
     
-    throw new Error(`${errorMessage} (${response.status})`);
+    throw new Error(errorMessage);
   }
 
   const result = await response.json();
@@ -210,7 +210,7 @@ export async function joinMatch(token: string, id: string): Promise<boolean> {
 
   if (!response.ok) {
     const errorText = await response.text();
-    throw new Error(`加入活動失敗 (${response.status}): ${errorText}`);
+    throw new Error(`加入活動失敗: ${errorText}`);
   }
 
   const result = await response.json();
@@ -231,7 +231,7 @@ export async function leaveMatch(token: string, id: string): Promise<boolean> {
 
   if (!response.ok) {
     const errorText = await response.text();
-    throw new Error(`離開活動失敗 (${response.status}): ${errorText}`);
+    throw new Error(`離開活動失敗: ${errorText}`);
   }
 
   const result = await response.json();

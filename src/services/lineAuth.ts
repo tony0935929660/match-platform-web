@@ -130,7 +130,7 @@ export async function loginWithBackend(code: string, redirectUri: string): Promi
       }
     }
     
-    throw new Error(`${errorMessage} (${response.status})`);
+    throw new Error(errorMessage);
   }
 
   const data = await response.json();

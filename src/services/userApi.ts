@@ -40,7 +40,7 @@ export async function getUserProfile(token: string): Promise<UserProfile> {
   if (!response.ok) {
     const errorText = await response.text();
     console.error("Get profile error:", response.status, errorText);
-    throw new Error(`取得使用者資料失敗 (${response.status})`);
+    throw new Error("取得使用者資料失敗");
   }
 
   const result = await response.json();
@@ -69,7 +69,7 @@ export async function updateUserProfile(token: string, data: UpdateUserRequest):
   if (!response.ok) {
     const errorText = await response.text();
     console.error("Update profile error:", response.status, errorText);
-    throw new Error(`更新使用者資料失敗 (${response.status})`);
+    throw new Error("更新使用者資料失敗");
   }
 
   const result = await response.json();
