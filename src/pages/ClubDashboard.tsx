@@ -149,13 +149,16 @@ export default function ClubDashboard() {
     queryKey: ['upcomingMatches', currentClub?.id],
     queryFn: () => getMatches(token!, { 
       groupId: currentClub!.id, 
-      pageSize: 3, 
+      pageSize: 10, // Fetch more to ensure we have enough upcoming after filtering
       pageNumber: 1
     }),
     enabled: !!token && !!currentClub,
   });
 
-  const upcomingActivities = upcomingActivitiesData?.content || [];
+  const now = new Date();
+  const upcomingActivities = (upcomingActivitiesData?.content || [])
+    .filter(activity => new Date(activity.dateTime) > now)
+    .slice(0, 3); // Take only top 3 upcoming
   
   const displayClub = currentClub ? {
     id: currentClub.id.toString(),

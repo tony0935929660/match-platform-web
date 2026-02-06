@@ -146,9 +146,15 @@ export default function Index() {
         const sportsData = await getSports();
         setSports(sportsData);
 
-        const matchesResponse = await getMatches(undefined, { pageSize: 4 });
+        // Fetch more to handle past events filtering
+        const matchesResponse = await getMatches(undefined, { pageSize: 20 });
         
-        const mappedMatches = matchesResponse.content.map(m => {
+        const now = new Date();
+        const futureMatches = matchesResponse.content.filter(m => new Date(m.dateTime) > now);
+        // Take top 4
+        const displayMatches = futureMatches.slice(0, 4);
+
+        const mappedMatches = displayMatches.map(m => {
           // Try to find sport name from sportsData
           const sportEnum = sportsData.find(s => s.value === m.sport);
           const sportType = sportEnum ? mapSportEnumToType(sportEnum.name) : "badminton";

@@ -128,13 +128,21 @@ export default function ClubActivities() {
 
   const matches = matchesData?.content || [];
   
-  // 簡單過濾 (如果需要前端過濾) - 此處使用 API 回傳資料取代 mock
-  const filteredUpcoming = matches.filter(activity => 
-    activity.name.includes(searchQuery) || activity.court.includes(searchQuery)
-  );
+  const now = new Date();
 
-  // 暫時隱藏歷史活動直到 API 支援
-  const filteredPast: MatchResponse[] = [];
+  const filteredUpcoming = matches.filter(activity => {
+    const isUpcoming = new Date(activity.dateTime) > now;
+    const matchesSearch = activity.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                          activity.court.toLowerCase().includes(searchQuery.toLowerCase());
+    return isUpcoming && matchesSearch;
+  });
+
+  const filteredPast = matches.filter(activity => {
+    const isPast = new Date(activity.dateTime) <= now;
+    const matchesSearch = activity.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                          activity.court.toLowerCase().includes(searchQuery.toLowerCase());
+    return isPast && matchesSearch;
+  });
 
   return (
     <MainLayout>
