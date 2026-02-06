@@ -50,12 +50,20 @@ export async function exchangeCodeForToken(code: string): Promise<LineTokenRespo
   const clientSecret = import.meta.env.VITE_LINE_CHANNEL_SECRET;
   const redirectUri = import.meta.env.VITE_LINE_REDIRECT_URI || `${window.location.origin}/auth/line/callback`;
 
+  console.log("=== Token Exchange Debug ===");
+  console.log("Client ID:", clientId);
+  console.log("Client Secret:", clientSecret ? `${clientSecret.substring(0, 8)}...` : "MISSING!");
+  console.log("Redirect URI:", redirectUri);
+  console.log("Code:", code ? `${code.substring(0, 10)}...` : "MISSING!");
+
   const params = new URLSearchParams();
   params.append("grant_type", "authorization_code");
   params.append("code", code);
   params.append("redirect_uri", redirectUri);
   params.append("client_id", clientId);
   params.append("client_secret", clientSecret);
+
+  console.log("Request params:", params.toString());
 
   const response = await fetch(LINE_TOKEN_URL, {
     method: "POST",
@@ -67,6 +75,7 @@ export async function exchangeCodeForToken(code: string): Promise<LineTokenRespo
 
   if (!response.ok) {
     const error = await response.json();
+    console.error("LINE Token Exchange Error:", error);
     throw new Error(error.error_description || "Failed to exchange code for token");
   }
 
@@ -146,7 +155,7 @@ export function createUserFromBackendResponse(response: BackendAuthResponse): Us
 }
 
 /**
- * 完整的 LINE 登入流程
+ * 使用授權碼登入（讓後端處理 token 交換）
  */
 export async function processLineCallback(code: string): Promise<{ user: User; token: string }> {
   /*
