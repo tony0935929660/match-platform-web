@@ -70,14 +70,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [token]);
 
-  const login = () => {
+  const login = (redirectUrl?: string) => {
     // 導向 LINE 登入
     const clientId = import.meta.env.VITE_LINE_CHANNEL_ID;
     const redirectUri = import.meta.env.VITE_LINE_REDIRECT_URI || `${window.location.origin}/auth/line/callback`;
     const state = generateRandomState();
     
     // 儲存 state 用於驗證回調
-    sessionStorage.setItem("line_auth_state", state);
+    localStorage.setItem("line_auth_state", state);
+    
+    // Check if redirectUrl is a valid string, not an Event object or empty
+    if (redirectUrl && typeof redirectUrl === 'string') {
+        localStorage.setItem("login_redirect_url", redirectUrl);
+    }
     
     const lineAuthUrl = new URL("https://access.line.me/oauth2/v2.1/authorize");
     lineAuthUrl.searchParams.set("response_type", "code");

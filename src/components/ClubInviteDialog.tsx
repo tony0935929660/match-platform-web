@@ -39,6 +39,10 @@ export function ClubInviteDialog({ clubId, clubName, trigger }: ClubInviteDialog
       maxUses: 2147483647,
     }),
     onSuccess: (data) => {
+        // The data returned from the API call (as handled in groupApi.ts) is result.data
+        // Based on user log:
+        // "data": { "id": 11, "groupId": 4, "code": "46980933", ... }
+        // So data.code should be correct.
       setCurrentInviteCode(data.code);
     },
     onError: (error) => {

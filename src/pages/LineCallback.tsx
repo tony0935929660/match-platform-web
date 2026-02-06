@@ -37,7 +37,7 @@ export default function LineCallback() {
       }
 
       // 驗證 state（CSRF 保護）
-      const savedState = sessionStorage.getItem("line_auth_state");
+      const savedState = localStorage.getItem("line_auth_state");
       if (state !== savedState) {
         setStatus("error");
         setErrorMessage("安全驗證失敗，請重新登入");
@@ -52,11 +52,13 @@ export default function LineCallback() {
         setStatus("success");
         
         // 清除 state
-        sessionStorage.removeItem("line_auth_state");
+        localStorage.removeItem("line_auth_state");
+        const redirectUrl = localStorage.getItem("login_redirect_url");
+        localStorage.removeItem("login_redirect_url");
         
         // 延遲導向，讓用戶看到成功訊息
         setTimeout(() => {
-          navigate("/", { replace: true });
+          navigate(redirectUrl || "/", { replace: true });
         }, 1500);
       } catch (err) {
         console.error("LINE callback error:", err);

@@ -227,6 +227,9 @@ export default function ActivityDetail() {
   const handleCloseRegistration = () => {
     setShowRegistration(false);
     setRegistrationStep("confirm");
+    if (registrationStep === "success") {
+        navigate("/activities");
+    }
   };
 
   

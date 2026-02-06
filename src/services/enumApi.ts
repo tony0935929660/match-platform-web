@@ -41,7 +41,7 @@ export async function getPaymentTypes(): Promise<PaymentTypeEnum[]> {
   });
 
   if (!response.ok) {
-    throw new Error(`取得付款類型失敗 (${response.status})`);
+    throw new Error("取得付款類型失敗");
   }
 
   const result = await response.json();
@@ -65,7 +65,7 @@ export async function getBillingUnits(): Promise<BillingUnitEnum[]> {
   });
 
   if (!response.ok) {
-    throw new Error(`取得計費單位失敗 (${response.status})`);
+    throw new Error("取得計費單位失敗");
   }
 
   const result = await response.json();
@@ -98,7 +98,7 @@ export async function getSports(): Promise<SportEnum[]> {
   });
 
   if (!response.ok) {
-    throw new Error(`取得運動類型失敗 (${response.status})`);
+    throw new Error("取得運動類型失敗");
   }
 
   const result = await response.json();
@@ -123,7 +123,7 @@ export async function getAreas(): Promise<AreaEnum[]> {
   });
 
   if (!response.ok) {
-    throw new Error(`取得地區列表失敗 (${response.status})`);
+    throw new Error("取得地區列表失敗");
   }
 
   const result = await response.json();
