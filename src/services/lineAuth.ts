@@ -102,17 +102,17 @@ export async function getLineProfile(accessToken: string): Promise<LineProfile> 
 /**
  * 呼叫後端 API 進行登入驗證
  */
-export async function loginWithBackend(accessToken: string): Promise<BackendAuthResponse> {
+export async function loginWithBackend(code: string, redirectUri: string): Promise<BackendAuthResponse> {
   const apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
   
-  console.log("Calling backend API with access token:", accessToken.substring(0, 20) + "...");
+  console.log("Calling backend API with code...");
   
   const response = await fetch(`${apiBaseUrl}/api/auth/line-login`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ accessToken }),
+    body: JSON.stringify({ code, redirectUri }),
   });
 
   if (!response.ok) {
@@ -157,60 +157,20 @@ export function createUserFromBackendResponse(response: BackendAuthResponse): Us
 /**
  * 使用授權碼登入（讓後端處理 token 交換）
  */
-export async function loginWithCode(code: string): Promise<BackendAuthResponse> {
-  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
-  const redirectUri = import.meta.env.VITE_LINE_REDIRECT_URI || `${window.location.origin}/auth/line/callback`;
-  
-  console.log("=== LINE Login Debug ===");
-  console.log("API Base URL:", apiBaseUrl);
-  console.log("Redirect URI:", redirectUri);
-  console.log("Authorization Code:", code ? `${code.substring(0, 10)}...` : "MISSING!");
-  
-  const response = await fetch(`${apiBaseUrl}/api/auth/line-login`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ 
-      code,
-      redirectUri 
-    }),
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error("Backend API error:", response.status, errorText);
-    
-    let errorMessage = "LINE 登入失敗";
-    try {
-      const errorJson = JSON.parse(errorText);
-      errorMessage = errorJson.message || errorJson.error || errorMessage;
-    } catch {
-      if (errorText) {
-        errorMessage = errorText;
-      }
-    }
-    
-    throw new Error(`${errorMessage} (${response.status})`);
-  }
-
-  const data = await response.json();
-  console.log("LINE Login successful:", data.data?.user?.lineName || "User");
-  return data;
-}
-
-/**
- * 完整的 LINE 登入流程（安全版本 - 所有敏感操作都在後端）
- */
 export async function processLineCallback(code: string): Promise<{ user: User; token: string }> {
-  console.log("Processing LINE callback...");
+  /*
+   * 修改說明：
+   * 原本流程是在前端換取 access token，然後傳給後端。
+   * 但後端 API (api/auth/line-login) 要求傳入 code 和 redirectUri，
+   * 表示後端會自行執行 authorization code flow 來換取 access token。
+   * 因此這裡只需將 code 傳給後端即可。
+   */
   
-  // 直接將 code 傳給後端處理，後端會：
-  // 1. 使用 Channel Secret 與 LINE 交換 access_token
-  // 2. 獲取用戶的 LINE Profile
-  // 3. 建立或更新用戶記錄
-  // 4. 產生並回傳 JWT token
-  const backendResponse = await loginWithCode(code);
+  const redirectUri = import.meta.env.VITE_LINE_REDIRECT_URI || `${window.location.origin}/auth/line/callback`;
+
+  // 呼叫後端 API 進行登入
+  console.log("Calling backend API for LINE login...");
+  const backendResponse = await loginWithBackend(code, redirectUri);
   
   if (!backendResponse.success) {
     throw new Error(backendResponse.message || "登入失敗");

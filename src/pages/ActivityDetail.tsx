@@ -109,7 +109,6 @@ export default function ActivityDetail() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['match', id] });
       setRegistrationStep("success");
-      // toast({ title: "報名成功！", description: "你已成功報名此活動，記得準時出席喔！" }); // Dialog already shows success
     },
     onError: (error) => {
       toast({
@@ -207,8 +206,14 @@ export default function ActivityDetail() {
         setRegistrationStep("identity");
       } else if (registrationStep === "identity") {
         setRegistrationStep("payment");
+        // 如果是臨打，預設選單次繳費
+        if (selectedIdentity === "casual") {
+          setSelectedPayment("single");
+        }
       } else if (registrationStep === "payment") {
-        setRegistrationStep("success");
+        // Here we should call API joining logic
+        joinMutation.mutate();
+        // The success step transition should be in onSuccess of mutation
       }
     } else {
       // Personal Flow
@@ -558,18 +563,20 @@ export default function ActivityDetail() {
                       </div>
                     </div>
                   </Label>
-                  <Label
-                    htmlFor="season"
-                    className="flex items-center justify-between p-4 rounded-lg border cursor-pointer hover:bg-secondary transition-colors"
-                  >
-                    <div className="flex items-center gap-3">
-                      <RadioGroupItem value="season" id="season" />
-                      <div>
-                        <div className="font-medium">季繳方案</div>
-                        <div className="text-sm text-muted-foreground">享有折扣優惠</div>
+                  {selectedIdentity !== "casual" && (
+                    <Label
+                      htmlFor="season"
+                      className="flex items-center justify-between p-4 rounded-lg border cursor-pointer hover:bg-secondary transition-colors"
+                    >
+                      <div className="flex items-center gap-3">
+                        <RadioGroupItem value="season" id="season" />
+                        <div>
+                          <div className="font-medium">季繳方案</div>
+                          <div className="text-sm text-muted-foreground">享有折扣優惠</div>
+                        </div>
                       </div>
-                    </div>
-                  </Label>
+                    </Label>
+                  )}
                 </div>
               </RadioGroup>
             )}

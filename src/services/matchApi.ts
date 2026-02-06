@@ -12,7 +12,7 @@ export interface CreateMatchRequest {
   price: number;          // 費用
   unit: number;           // 計費單位 (1 = 每人)
   groupId?: number | null; // 球團 ID
-  requiredPeople: number; // 名額上限
+  requiredPeople: number | null; // 名額上限
   maxGrade: number;       // 等級上限
   minGrade: number;       // 等級下限
   remark?: string;        // 活動說明
@@ -29,6 +29,8 @@ export interface MatchResponse {
   area: number;
   sport: number;
   address: string;
+  host?: string;
+  participants?: any[];
   dateTime: string;
   endDateTime: string;
   price: number;
@@ -137,6 +139,7 @@ export interface GetMatchesParams {
   sport?: number;
   pageNumber?: number;
   pageSize?: number;
+  groupId?: number;
 }
 
 /**
@@ -150,6 +153,7 @@ export async function getMatches(token?: string, params?: GetMatchesParams): Pro
   if (params?.sport) searchParams.append("sport", String(params.sport));
   if (params?.pageNumber !== undefined) searchParams.append("pageNumber", String(params.pageNumber));
   if (params?.pageSize !== undefined) searchParams.append("pageSize", String(params.pageSize));
+  if (params?.groupId !== undefined) searchParams.append("groupId", String(params.groupId));
 
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
@@ -171,10 +175,23 @@ export async function getMatches(token?: string, params?: GetMatchesParams): Pro
   const result = await response.json();
   console.log("Get matches response:", result);
   
-  // 處理包裝格式
-  if (result.success !== undefined && result.data) {
+  // 處理新的 API 回應格式 { success, data, pagination }
+  if (result.data && Array.isArray(result.data)) {
+    return {
+      content: result.data,
+      pageNumber: result.pagination?.pageNumber ?? 0,
+      pageSize: result.pagination?.pageSize ?? 10,
+      totalElements: result.pagination?.totalElements ?? 0, // 暫時 fallback
+      totalPages: result.pagination?.totalPages ?? 0, // 暫時 fallback
+      last: true // 暫時 fallback
+    } as PageResponse<MatchResponse>;
+  }
+
+  // 處理包裝格式 (舊格式)
+  if (result.success !== undefined && result.data && result.data.content) {
     return result.data as PageResponse<MatchResponse>;
   }
+  
   // 如果直接回傳 PageResponse
   return result as PageResponse<MatchResponse>;
 }

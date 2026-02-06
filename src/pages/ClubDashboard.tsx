@@ -10,6 +10,7 @@ import { ClubSettingsDialog } from "@/components/ClubSettingsDialog";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { getGroups, getGroupMembers, getGroupPayments, GroupResponse, GroupMemberResponse, PaymentResponse } from "@/services/groupApi";
+import { getMatches, MatchResponse } from "@/services/matchApi";
 import { getPaymentTypes, PaymentTypeEnum } from "@/services/enumApi";
 import { Loader2 } from "lucide-react";
 import { format } from "date-fns";
@@ -142,6 +143,22 @@ export default function ClubDashboard() {
     queryKey: ['paymentTypes'],
     queryFn: getPaymentTypes,
   });
+
+  // Fetch upcoming activities
+  const { data: upcomingActivitiesData } = useQuery({
+    queryKey: ['upcomingMatches', currentClub?.id],
+    queryFn: () => getMatches(token!, { 
+      groupId: currentClub!.id, 
+      pageSize: 10, // Fetch more to ensure we have enough upcoming after filtering
+      pageNumber: 1
+    }),
+    enabled: !!token && !!currentClub,
+  });
+
+  const now = new Date();
+  const upcomingActivities = (upcomingActivitiesData?.content || [])
+    .filter(activity => new Date(activity.dateTime) > now)
+    .slice(0, 3); // Take only top 3 upcoming
   
   const displayClub = currentClub ? {
     id: currentClub.id.toString(),
@@ -229,7 +246,7 @@ export default function ClubDashboard() {
                   <ChevronRight className="h-4 w-4 text-muted-foreground" />
                 </div>
                 <div className="font-semibold text-foreground">活動管理</div>
-                <div className="text-sm text-muted-foreground">{mockClubActivities.length} 場即將舉行</div>
+                <div className="text-sm text-muted-foreground">{upcomingActivitiesData?.totalElements || upcomingActivities.length} 場即將舉行</div>
               </CardContent>
             </Card>
           </Link>
@@ -298,31 +315,31 @@ export default function ClubDashboard() {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {mockClubActivities.slice(0, 3).map((activity) => (
+              {upcomingActivities.map((activity) => (
                 <div key={activity.id} className="flex items-center justify-between p-4 rounded-lg bg-secondary">
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
-                      <SportBadge sport={activity.sport} size="sm" />
-                      {activity.isCasualOpen && (
+                      <SportBadge sport={getSportType(activity.sport)} size="sm" />
+                      {activity.isGuestPlayerAllowed && (
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary">
                           <span className="w-1.5 h-1.5 rounded-full bg-primary" />
                           開放臨打
                         </span>
                       )}
                     </div>
-                    <h3 className="font-semibold text-foreground">{activity.title}</h3>
+                    <h3 className="font-semibold text-foreground">{activity.name}</h3>
                     <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground mt-1">
                       <div className="flex items-center gap-1">
                         <Calendar className="h-3.5 w-3.5" />
-                        {activity.date}
+                        {format(new Date(activity.dateTime), "MM/dd")}
                       </div>
                       <div className="flex items-center gap-1">
                         <Clock className="h-3.5 w-3.5" />
-                        {activity.time}
+                        {format(new Date(activity.dateTime), "HH:mm")}-{format(new Date(activity.endDateTime), "HH:mm")}
                       </div>
                       <div className="flex items-center gap-1">
                         <MapPin className="h-3.5 w-3.5" />
-                        {activity.location}
+                        {activity.court}
                       </div>
                     </div>
                   </div>
@@ -331,13 +348,16 @@ export default function ClubDashboard() {
                       <div className="flex items-center gap-1.5 justify-end">
                         <Users className="h-4 w-4 text-muted-foreground" />
                         <span className="font-semibold text-foreground">
-                          {activity.currentSlots}/{activity.maxSlots}
+                          {activity.participants?.length || 0}
+                          {activity.requiredPeople ? `/${activity.requiredPeople}` : " 人"}
                         </span>
                       </div>
                       <div className="text-xs text-muted-foreground">
-                        {activity.maxSlots - activity.currentSlots > 0 
-                          ? `剩餘 ${activity.maxSlots - activity.currentSlots} 位`
-                          : "已額滿"
+                        {!activity.requiredPeople 
+                          ? "無名額限制" 
+                          : activity.requiredPeople - (activity.participants?.length || 0) > 0 
+                            ? `剩餘 ${activity.requiredPeople - (activity.participants?.length || 0)} 位`
+                            : "已額滿"
                         }
                       </div>
                     </div>

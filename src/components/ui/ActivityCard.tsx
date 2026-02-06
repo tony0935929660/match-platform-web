@@ -19,7 +19,7 @@ interface ActivityCardProps {
   levelRange: { min: number; max: number };
   isCasualOpen: boolean;
   currentSlots: number;
-  maxSlots: number;
+  maxSlots: number | null;
   waitlistCount?: number;
   price?: number;
   className?: string;
@@ -44,8 +44,8 @@ export function ActivityCard({
   price,
   className,
 }: ActivityCardProps) {
-  const isFull = currentSlots >= maxSlots;
-  const slotsRemaining = maxSlots - currentSlots;
+  const isFull = maxSlots !== null && currentSlots >= maxSlots;
+  const slotsRemaining = maxSlots !== null ? maxSlots - currentSlots : 9999;
   
   return (
     <Link to={`/activities/${id}`} className="block group">
@@ -127,13 +127,15 @@ export function ActivityCard({
               <Users className="h-4 w-4 text-muted-foreground" />
               <span className={cn(
                 "font-semibold",
-                isFull ? "text-destructive" : slotsRemaining <= 2 ? "text-warning" : "text-foreground"
+                isFull ? "text-destructive" : (maxSlots !== null && slotsRemaining <= 2) ? "text-warning" : "text-foreground"
               )}>
-                {currentSlots}/{maxSlots}
+                {currentSlots}{maxSlots !== null ? `/${maxSlots}` : " 人"}
               </span>
             </div>
             {isFull && waitlistCount ? (
               <div className="text-xs text-muted-foreground">候補 {waitlistCount} 人</div>
+            ) : maxSlots === null ? (
+              <div className="text-xs text-muted-foreground">無名額限制</div>
             ) : slotsRemaining > 0 ? (
               <div className="text-xs text-muted-foreground">剩餘 {slotsRemaining} 位</div>
             ) : null}

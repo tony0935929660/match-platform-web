@@ -102,12 +102,22 @@ export default function Activities() {
 
         const data = await getMatches(undefined, params);
         if (data && data.content) {
-            setMatches(data.content);
-            setTotalElements(data.totalElements);
+            // Filter out past activities
+            const now = new Date();
+            const futureMatches = data.content.filter(m => new Date(m.dateTime) > now);
+            setMatches(futureMatches);
+            // Note: totalElements might be inaccurate if we filter on frontend, 
+            // but we can't easily fix paginated total count without backend support.
+            // For now, let's keep totalElements as is or adjust it? 
+            // Better to show what we have.
+            setTotalElements(futureMatches.length); 
         } else {
              // Fallback if data is array
-             setMatches(Array.isArray(data) ? data : []);
-             setTotalElements(Array.isArray(data) ? data.length : 0);
+             const list = Array.isArray(data) ? data : [];
+             const now = new Date();
+             const futureMatches = list.filter(m => new Date(m.dateTime) > now);
+             setMatches(futureMatches);
+             setTotalElements(futureMatches.length);
         }
 
       } catch (error) {

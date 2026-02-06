@@ -6,6 +6,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SportBadge, SportType } from "@/components/ui/SportBadge";
 import { Badge } from "@/components/ui/badge";
+import { useQuery } from "@tanstack/react-query";
+import { useAuth } from "@/contexts/AuthContext";
+import { getGroups } from "@/services/groupApi";
+import { getMatches, MatchResponse } from "@/services/matchApi";
+import { format } from "date-fns";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -92,16 +97,52 @@ const mockPastActivities = [
   },
 ];
 
+const getSportType = (id: number): SportType => {
+  switch (id) {
+    case 1: return "badminton";
+    case 2: return "tennis";
+    case 3: return "table-tennis";
+    case 4: return "basketball";
+    case 5: return "volleyball";
+    case 6: return "soccer";
+    default: return "badminton";
+  }
+};
+
 export default function ClubActivities() {
   const [searchQuery, setSearchQuery] = useState("");
+  const { token } = useAuth();
   
-  const filteredUpcoming = mockClubActivities.filter(activity => 
-    activity.title.includes(searchQuery) || activity.location.includes(searchQuery)
-  );
+  const { data: groups } = useQuery({
+    queryKey: ['groups'],
+    queryFn: () => getGroups(token!),
+    enabled: !!token,
+  });
+  const currentClub = groups?.[0];
 
-  const filteredPast = mockPastActivities.filter(activity => 
-    activity.title.includes(searchQuery) || activity.location.includes(searchQuery)
-  );
+  const { data: matchesData } = useQuery({
+    queryKey: ['clubMatches', currentClub?.id],
+    queryFn: () => getMatches(token!, { groupId: currentClub!.id, pageNumber: 1, pageSize: 10 }),
+    enabled: !!token && !!currentClub
+  });
+
+  const matches = matchesData?.content || [];
+  
+  const now = new Date();
+
+  const filteredUpcoming = matches.filter(activity => {
+    const isUpcoming = new Date(activity.dateTime) > now;
+    const matchesSearch = activity.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                          activity.court.toLowerCase().includes(searchQuery.toLowerCase());
+    return isUpcoming && matchesSearch;
+  });
+
+  const filteredPast = matches.filter(activity => {
+    const isPast = new Date(activity.dateTime) <= now;
+    const matchesSearch = activity.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                          activity.court.toLowerCase().includes(searchQuery.toLowerCase());
+    return isPast && matchesSearch;
+  });
 
   return (
     <MainLayout>
@@ -129,20 +170,20 @@ export default function ClubActivities() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
           <Card>
             <CardContent className="p-4">
-              <div className="text-2xl font-bold text-foreground">{mockClubActivities.length}</div>
+              <div className="text-2xl font-bold text-foreground">{matchesData?.totalElements || matches.length}</div>
               <div className="text-sm text-muted-foreground">即將舉行</div>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="p-4">
-              <div className="text-2xl font-bold text-foreground">{mockPastActivities.length}</div>
+              <div className="text-2xl font-bold text-foreground">{filteredPast.length}</div>
               <div className="text-sm text-muted-foreground">已結束</div>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="p-4">
               <div className="text-2xl font-bold text-foreground">
-                {mockClubActivities.reduce((sum, a) => sum + a.currentSlots, 0)}
+                {matches.reduce((sum, a) => sum + (a.participants?.length || 0), 0)}
               </div>
               <div className="text-sm text-muted-foreground">總報名人數</div>
             </CardContent>
@@ -150,7 +191,7 @@ export default function ClubActivities() {
           <Card>
             <CardContent className="p-4">
               <div className="text-2xl font-bold text-primary">
-                {mockClubActivities.filter(a => a.isCasualOpen).length}
+                {matches.filter(a => a.isGuestPlayerAllowed).length}
               </div>
               <div className="text-sm text-muted-foreground">開放臨打</div>
             </CardContent>
@@ -177,8 +218,8 @@ export default function ClubActivities() {
         {/* Tabs */}
         <Tabs defaultValue="upcoming" className="space-y-6">
           <TabsList>
-            <TabsTrigger value="upcoming">即將舉行 ({mockClubActivities.length})</TabsTrigger>
-            <TabsTrigger value="past">歷史活動 ({mockPastActivities.length})</TabsTrigger>
+            <TabsTrigger value="upcoming">即將舉行 ({matches.length})</TabsTrigger>
+            <TabsTrigger value="past">歷史活動 ({filteredPast.length})</TabsTrigger>
           </TabsList>
 
           <TabsContent value="upcoming" className="space-y-4">
@@ -199,19 +240,7 @@ export default function ClubActivities() {
 }
 
 interface ActivityItemProps {
-  activity: {
-    id: string;
-    title: string;
-    sport: SportType;
-    date: string;
-    time: string;
-    location: string;
-    currentSlots: number;
-    maxSlots: number;
-    casualSlots?: number;
-    isCasualOpen?: boolean;
-    status: "upcoming" | "completed";
-  };
+  activity: MatchResponse;
   isPast?: boolean;
 }
 
@@ -221,8 +250,8 @@ function ActivityItem({ activity, isPast = false }: ActivityItemProps) {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex-1">
           <div className="flex items-center gap-2 mb-2">
-            <SportBadge sport={activity.sport} size="sm" />
-            {'isCasualOpen' in activity && activity.isCasualOpen && (
+            <SportBadge sport={getSportType(activity.sport)} size="sm" />
+            {activity.isGuestPlayerAllowed && (
               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary">
                 <span className="w-1.5 h-1.5 rounded-full bg-primary" />
                 開放臨打
@@ -232,19 +261,19 @@ function ActivityItem({ activity, isPast = false }: ActivityItemProps) {
               <Badge variant="secondary">已結束</Badge>
             )}
           </div>
-          <h3 className="font-semibold text-foreground text-lg mb-2">{activity.title}</h3>
+          <h3 className="font-semibold text-foreground text-lg mb-2">{activity.name}</h3>
           <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
             <div className="flex items-center gap-1.5">
               <Calendar className="h-4 w-4" />
-              {activity.date}
+              {format(new Date(activity.dateTime), "yyyy/MM/dd")}
             </div>
             <div className="flex items-center gap-1.5">
               <Clock className="h-4 w-4" />
-              {activity.time}
+              {format(new Date(activity.dateTime), "HH:mm")}-{format(new Date(activity.endDateTime), "HH:mm")}
             </div>
             <div className="flex items-center gap-1.5">
               <MapPin className="h-4 w-4" />
-              {activity.location}
+              {activity.court}
             </div>
           </div>
         </div>
@@ -254,13 +283,16 @@ function ActivityItem({ activity, isPast = false }: ActivityItemProps) {
             <div className="flex items-center gap-1.5 justify-end">
               <Users className="h-4 w-4 text-muted-foreground" />
               <span className="font-semibold text-foreground">
-                {activity.currentSlots}/{activity.maxSlots}
+                {activity.participants?.length || 0}
+                {activity.requiredPeople ? `/${activity.requiredPeople}` : " 人"}
               </span>
             </div>
             <div className="text-xs text-muted-foreground">
-              {activity.maxSlots - activity.currentSlots > 0 
-                ? `剩餘 ${activity.maxSlots - activity.currentSlots} 位`
-                : "已額滿"
+              {!activity.requiredPeople
+                ? "無名額限制"
+                : activity.requiredPeople - (activity.participants?.length || 0) > 0 
+                  ? `剩餘 ${activity.requiredPeople - (activity.participants?.length || 0)} 位`
+                  : "已額滿"
               }
             </div>
           </div>
