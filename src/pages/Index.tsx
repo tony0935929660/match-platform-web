@@ -7,6 +7,7 @@ import { Link } from "react-router-dom";
 import { getSports, SportEnum } from "@/services/enumApi";
 import { getMatches, MatchResponse } from "@/services/matchApi";
 import { useState, useEffect } from "react";
+import { useAuth } from "@/contexts/AuthContext";
 import { format } from "date-fns";
 import { zhTW } from "date-fns/locale";
 import { 
@@ -137,6 +138,7 @@ const mapSportEnumToType = (enumName: string): SportType => {
 };
 
 export default function Index() {
+  const { token } = useAuth();
   const [sports, setSports] = useState<SportEnum[]>([]);
   const [hotActivities, setHotActivities] = useState<any[]>([]);
 
@@ -147,7 +149,7 @@ export default function Index() {
         setSports(sportsData);
 
         // Fetch more to handle past events filtering
-        const matchesResponse = await getMatches(undefined, { pageSize: 20 });
+        const matchesResponse = await getMatches(token || undefined, { pageSize: 20 });
         
         const now = new Date();
         const futureMatches = matchesResponse.content.filter(m => new Date(m.dateTime) > now);
@@ -184,7 +186,7 @@ export default function Index() {
     };
 
     fetchData();
-  }, []);
+  }, [token]);
 
   // Helper to get emoji safely
   const getSportEmoji = (sportName: string) => {
