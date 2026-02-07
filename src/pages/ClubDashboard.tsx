@@ -7,11 +7,12 @@ import { CreditBadge } from "@/components/ui/CreditBadge";
 import { SkillLevelBadge } from "@/components/ui/SkillLevelBadge";
 import { ClubInviteDialog } from "@/components/ClubInviteDialog";
 import { ClubSettingsDialog } from "@/components/ClubSettingsDialog";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
-import { getGroups, getGroupMembers, getGroupPayments, GroupResponse, GroupMemberResponse, PaymentResponse } from "@/services/groupApi";
+import { getGroups, getGroupMembers, getGroupPayments, removeMember, updateMemberRole, GroupResponse, GroupMemberResponse, PaymentResponse } from "@/services/groupApi";
 import { getMatches, MatchResponse } from "@/services/matchApi";
-import { getPaymentTypes, PaymentTypeEnum } from "@/services/enumApi";
+import { getPaymentTypes, getGroupRoles, PaymentTypeEnum, GroupRoleEnum } from "@/services/enumApi";
+import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { 
@@ -39,6 +40,16 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 
 const mockClub = {
@@ -115,7 +126,12 @@ const getSportType = (id: number): SportType => {
 };
 
 export default function ClubDashboard() {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [memberToDelete, setMemberToDelete] = useState<GroupMemberResponse | null>(null);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+
   const { data: groups, isLoading } = useQuery({
     queryKey: ['groups'],
     queryFn: () => getGroups(token!),
@@ -124,12 +140,81 @@ export default function ClubDashboard() {
 
   const currentClub = groups?.[0];
 
+  // Fetch roles
+  const { data: roles = [] } = useQuery({
+    queryKey: ['groupRoles'],
+    queryFn: getGroupRoles,
+  });
+
   // Fetch members when we have a club
   const { data: members = [] } = useQuery<GroupMemberResponse[]>({
     queryKey: ['groupMembers', currentClub?.id],
     queryFn: () => getGroupMembers(token!, currentClub!.id),
     enabled: !!token && !!currentClub,
   });
+
+  // Remove Member Mutation
+  const removeMemberMutation = useMutation({
+    mutationFn: (userId: number) => removeMember(token!, currentClub!.id, userId),
+    onSuccess: () => {
+      toast({
+        title: "移除成功",
+        description: "該成員已從球團中移除",
+      });
+      queryClient.invalidateQueries({ queryKey: ['groupMembers', currentClub?.id] });
+      setIsDeleteDialogOpen(false);
+      setMemberToDelete(null);
+    },
+    onError: (error: Error) => {
+      toast({
+        variant: "destructive",
+        title: "移除失敗",
+        description: error.message,
+      });
+    }
+  });
+
+  // Update Role Mutation
+  const updateRoleMutation = useMutation({
+    mutationFn: ({ userId, role }: { userId: number; role: number }) => 
+      updateMemberRole(token!, currentClub!.id, userId, role),
+    onSuccess: () => {
+      toast({
+        title: "更新成功",
+        description: "成員權限已更新",
+      });
+      queryClient.invalidateQueries({ queryKey: ['groupMembers', currentClub?.id] });
+    },
+    onError: (error: Error) => {
+      toast({
+        variant: "destructive",
+        title: "更新失敗",
+        description: error.message,
+      });
+    }
+  });
+
+  const handleRemoveClick = (member: GroupMemberResponse) => {
+    setMemberToDelete(member);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const confirmRemove = () => {
+    if (memberToDelete) {
+      removeMemberMutation.mutate(memberToDelete.userId);
+    }
+  };
+
+  const handleRoleChange = (userId: number, newRole: number) => {
+    updateRoleMutation.mutate({ userId, role: newRole });
+  };
+
+  const getRoleName = (roleValue: number) => {
+    const role = roles.find((r: GroupRoleEnum) => r.value === roleValue);
+    return role ? role.displayName : "成員"; // Default to "成員" or check logic
+  };
+
+  const isClubAdmin = currentClub?.myRole === 2; // Assuming 2 is admin
 
   // Fetch payments when we have a club
   const { data: payments = [] } = useQuery<PaymentResponse[]>({
@@ -236,7 +321,7 @@ export default function ClubDashboard() {
 
         {/* Quick Actions */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-          <Link to="/club/activities">
+          <Link to={`/club/activities`}>
             <Card className="cursor-pointer hover:shadow-card-hover transition-all h-full">
               <CardContent className="p-4">
                 <div className="flex items-center justify-between mb-3">
@@ -251,21 +336,20 @@ export default function ClubDashboard() {
             </Card>
           </Link>
           
-          <Card 
-            className="cursor-pointer hover:shadow-card-hover transition-all"
-            onClick={() => scrollToTabsAndSwitch("members")}
-          >
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between mb-3">
-                <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                  <Users className="h-5 w-5 text-primary" />
+          <Link to={`/club/members?groupId=${displayClub.id}`}>
+            <Card className="cursor-pointer hover:shadow-card-hover transition-all h-full">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                    <Users className="h-5 w-5 text-primary" />
+                  </div>
+                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
                 </div>
-                <ChevronRight className="h-4 w-4 text-muted-foreground" />
-              </div>
-              <div className="font-semibold text-foreground">成員管理</div>
-              <div className="text-sm text-muted-foreground">{displayClub.members} 位成員</div>
-            </CardContent>
-          </Card>
+                <div className="font-semibold text-foreground">成員管理</div>
+                <div className="text-sm text-muted-foreground">{displayClub.members} 位成員</div>
+              </CardContent>
+            </Card>
+          </Link>
           
           <Card 
             className="cursor-pointer hover:shadow-card-hover transition-all"
@@ -436,13 +520,13 @@ export default function ClubDashboard() {
                         <div key={member.userId} className="flex items-center justify-between p-4 rounded-lg bg-secondary">
                           <div className="flex items-center gap-3">
                             <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                              <span className="font-medium text-primary">{member.userName[0]}</span>
+                              <span className="font-medium text-primary">{member.userName?.[0] || "?"}</span>
                             </div>
                             <div>
                               <div className="flex items-center gap-2">
                                 <span className="font-medium text-foreground">{member.userName}</span>
-                                <Badge variant={member.role === 2 ? "default" : "secondary"}>
-                                  {member.role === 2 ? "管理員" : "成員"}
+                                <Badge variant={member.role >= 2 ? "default" : "secondary"}>
+                                  {getRoleName(member.role)}
                                 </Badge>
                               </div>
                               <div className="text-sm text-muted-foreground mt-1">
@@ -450,18 +534,31 @@ export default function ClubDashboard() {
                               </div>
                             </div>
                           </div>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon">
-                                <MoreVertical className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem>查看資料</DropdownMenuItem>
-                              <DropdownMenuItem>調整權限</DropdownMenuItem>
-                              <DropdownMenuItem className="text-destructive">移除成員</DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
+                          {isClubAdmin && (
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon">
+                                  <MoreVertical className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem>查看資料</DropdownMenuItem>
+                                {roles
+                                  .filter((r: GroupRoleEnum) => r.value !== member.role)
+                                  .map((r: GroupRoleEnum) => (
+                                  <DropdownMenuItem key={r.value} onClick={() => handleRoleChange(member.userId, r.value)}>
+                                    設為{r.displayName}
+                                  </DropdownMenuItem>
+                                ))}
+                                <DropdownMenuItem 
+                                  className="text-destructive"
+                                  onClick={() => handleRemoveClick(member)}
+                                >
+                                  移除成員
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          )}
                         </div>
                       ))
                     )}
@@ -618,6 +715,27 @@ export default function ClubDashboard() {
           </Tabs>
         </div>
       </div>
+      
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>確定要移除成員嗎？</AlertDialogTitle>
+            <AlertDialogDescription>
+              移除後，{memberToDelete?.userName || memberToDelete?.lineName} 將無法再存取球團資訊。
+              此動作無法復原。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>取消</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={confirmRemove}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              移除
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </MainLayout>
   );
 }

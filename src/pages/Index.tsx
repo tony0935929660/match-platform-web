@@ -288,7 +288,8 @@ export default function Index() {
         </div>
       </section>
 
-      {/* Coaches Section */}
+      {/* Coaches Section - Hidden for now */}
+      {/* 
       <section className="py-12 md:py-16">
         <div className="container">
           <div className="flex items-center justify-between mb-8">
@@ -337,6 +338,7 @@ export default function Index() {
           </div>
         </div>
       </section>
+      */}
 
       {/* Clubs Section */}
       <section className="py-12 md:py-16 bg-secondary/30">
