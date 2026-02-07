@@ -9,8 +9,19 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { 
   ArrowLeft,
   UserPlus,
@@ -20,15 +31,28 @@ import {
   Loader2
 } from "lucide-react";
 import { Link, useSearchParams } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
-import { getGroup, getGroupMembers, GroupMemberResponse } from "@/services/groupApi";
+import { getGroup, getGroupMembers, removeMember, updateMemberRole, GroupMemberResponse } from "@/services/groupApi";
+import { getGroupRoles, GroupRoleEnum } from "@/services/enumApi";
+import { useToast } from "@/hooks/use-toast";
 
 export default function ClubMembers() {
   const [searchParams] = useSearchParams();
   const groupId = searchParams.get("groupId") || "";
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  const [memberToDelete, setMemberToDelete] = useState<GroupMemberResponse | null>(null);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+
+  // 獲取球團角色列表
+  const { data: roles = [] } = useQuery({
+    queryKey: ['groupRoles'],
+    queryFn: getGroupRoles,
+  });
 
   // 獲取球團詳情
   const { data: club } = useQuery({
@@ -43,10 +67,77 @@ export default function ClubMembers() {
     queryFn: () => getGroupMembers(token!, Number(groupId)),
     enabled: !!token && !!groupId,
   });
+
+  // 移除成員 Mutation
+  const removeMemberMutation = useMutation({
+    mutationFn: (userId: number) => removeMember(token!, Number(groupId), userId),
+    onSuccess: () => {
+      toast({
+        title: "移除成功",
+        description: "該成員已從球團中移除",
+      });
+      queryClient.invalidateQueries({ queryKey: ['groupMembers', groupId] });
+      setIsDeleteDialogOpen(false);
+      setMemberToDelete(null);
+    },
+    onError: (error: Error) => {
+      toast({
+        variant: "destructive",
+        title: "移除失敗",
+        description: error.message,
+      });
+    }
+  });
+
+  // 更新角色 Mutation
+  const updateRoleMutation = useMutation({
+    mutationFn: ({ userId, role }: { userId: number; role: number }) => 
+      updateMemberRole(token!, Number(groupId), userId, role),
+    onSuccess: () => {
+      toast({
+        title: "更新成功",
+        description: "成員權限已更新",
+      });
+      queryClient.invalidateQueries({ queryKey: ['groupMembers', groupId] });
+    },
+    onError: (error: Error) => {
+      toast({
+        variant: "destructive",
+        title: "更新失敗",
+        description: error.message,
+      });
+    }
+  });
+
+  const handleRemoveClick = (member: GroupMemberResponse) => {
+    setMemberToDelete(member);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const confirmRemove = () => {
+    if (memberToDelete) {
+      removeMemberMutation.mutate(memberToDelete.userId);
+    }
+  };
+
+  const handleRoleChange = (userId: number, newRole: number) => {
+    updateRoleMutation.mutate({ userId, role: newRole });
+  };
   
   const filteredMembers = members.filter((member: GroupMemberResponse) => 
     member.userName?.includes(searchQuery) || member.lineName?.includes(searchQuery)
   );
+
+  const getRoleName = (roleValue: number) => {
+    const role = roles.find((r: GroupRoleEnum) => r.value === roleValue);
+    return role ? role.displayName : "一般成員";
+  };
+
+  // 檢查當前用戶是否為管理員
+  const currentUserMembership = members.find((m: GroupMemberResponse) => m.userId === Number(user?.id)); // Assuming user.id corresponds to userId
+  // 這裡假設後端有正確回傳 myRole 在 group detail 或者我們可以從 members 中找到自己
+  // API GroupResponse 有 myRole，這裡也可以用 club.myRole
+  const isClubAdmin = club?.myRole === 2;
 
   // 格式化加入日期
   const formatJoinDate = (dateString: string) => {
@@ -89,28 +180,17 @@ export default function ClubMembers() {
               <div className="text-sm text-muted-foreground">總成員</div>
             </CardContent>
           </Card>
-          <Card>
-            <CardContent className="p-4">
-              <div className="text-2xl font-bold text-foreground">
-                {members.filter((m: GroupMemberResponse) => m.role === 2).length}
-              </div>
-              <div className="text-sm text-muted-foreground">管理員</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4">
-              <div className="text-2xl font-bold text-foreground">
-                {members.filter((m: GroupMemberResponse) => m.role === 1).length}
-              </div>
-              <div className="text-sm text-muted-foreground">一般成員</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4">
-              <div className="text-2xl font-bold text-foreground">-</div>
-              <div className="text-sm text-muted-foreground">待確認</div>
-            </CardContent>
-          </Card>
+          
+          {roles.map((role: GroupRoleEnum) => (
+            <Card key={role.value}>
+              <CardContent className="p-4">
+                <div className="text-2xl font-bold text-foreground">
+                  {members.filter((m: GroupMemberResponse) => m.role === role.value).length}
+                </div>
+                <div className="text-sm text-muted-foreground">{role.displayName}</div>
+              </CardContent>
+            </Card>
+          ))}
         </div>
 
         {/* Search & Filter */}
@@ -155,8 +235,8 @@ export default function ClubMembers() {
                       <div>
                         <div className="flex items-center gap-2">
                           <span className="font-medium text-foreground">{member.userName || member.lineName || "未知用戶"}</span>
-                          <Badge variant={member.role === 2 ? "default" : "secondary"}>
-                            {member.role === 2 ? "管理員" : "成員"}
+                          <Badge variant={member.role >= 2 ? "default" : "secondary"}>
+                            {getRoleName(member.role)}
                           </Badge>
                         </div>
                         <div className="flex items-center gap-2 mt-1">
@@ -170,18 +250,32 @@ export default function ClubMembers() {
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon">
-                            <MoreVertical className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem>查看資料</DropdownMenuItem>
-                          <DropdownMenuItem>調整權限</DropdownMenuItem>
-                          <DropdownMenuItem className="text-destructive">移除成員</DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                      {isClubAdmin && (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon">
+                              <MoreVertical className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem>查看資料</DropdownMenuItem>
+                            {roles
+                              .filter((r: GroupRoleEnum) => r.value !== member.role)
+                              .map((r: GroupRoleEnum) => (
+                              <DropdownMenuItem key={r.value} onClick={() => handleRoleChange(member.userId, r.value)}>
+                                設為{r.displayName}
+                              </DropdownMenuItem>
+                            ))}
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem 
+                              className="text-destructive"
+                              onClick={() => handleRemoveClick(member)}
+                            >
+                              移除成員
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -189,6 +283,27 @@ export default function ClubMembers() {
             )}
           </CardContent>
         </Card>
+
+        <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>確定要移除成員嗎？</AlertDialogTitle>
+              <AlertDialogDescription>
+                移除後，{memberToDelete?.userName || memberToDelete?.lineName} 將無法再存取球團資訊。
+                此動作無法復原。
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>取消</AlertDialogCancel>
+              <AlertDialogAction 
+                onClick={confirmRemove}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                移除
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </MainLayout>
   );

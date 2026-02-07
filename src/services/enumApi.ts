@@ -29,6 +29,36 @@ export interface PaymentTypeEnum {
   displayName: string;
 }
 
+// 球團角色枚舉
+export interface GroupRoleEnum {
+  value: number;
+  name: string;
+  displayName: string;
+}
+
+/**
+ * 取得球團角色列表
+ */
+export async function getGroupRoles(): Promise<GroupRoleEnum[]> {
+  const response = await fetch(`${API_BASE_URL}/api/enums/group-roles`, {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error("取得球團角色列表失敗");
+  }
+
+  const result = await response.json();
+  
+  if (result.success !== undefined && result.data) {
+    return result.data as GroupRoleEnum[];
+  }
+  return result as GroupRoleEnum[];
+}
+
 /**
  * 取得付款類型列表
  */

@@ -30,9 +30,8 @@ import { useAuth } from "@/contexts/AuthContext";
 const navItems = [
   { label: "首頁", href: "/", icon: Home },
   { label: "找活動", href: "/activities", icon: Calendar },
-  { label: "找課程", href: "/courses", icon: BookOpen },
+  // { label: "找課程", href: "/courses", icon: BookOpen },
   { label: "球團管理", href: "/club", icon: Users },
-  { label: "課程管理", href: "/course", icon: BookOpen },
 ];
 
 export function Header() {
@@ -87,12 +86,14 @@ export function Header() {
                 建立球團
               </Button>
             </Link>
+            {/* 
             <Link to="/course/new">
               <Button variant="outline" size="sm" className="gap-1.5">
                 <BookOpen className="h-4 w-4" />
-                建立課程
+                開課
               </Button>
-            </Link>
+            </Link> 
+            */}
           </div>
           
           {/* New Activity Button */}
@@ -138,12 +139,14 @@ export function Header() {
                     球團管理
                   </Link>
                 </DropdownMenuItem>
+                {/* 
                 <DropdownMenuItem asChild>
                   <Link to="/course" className="flex items-center gap-2 cursor-pointer">
                     <BookOpen className="h-4 w-4" />
                     課程管理
                   </Link>
-                </DropdownMenuItem>
+                </DropdownMenuItem> 
+                */}
                 <DropdownMenuItem asChild>
                   <Link to="/admin" className="flex items-center gap-2 cursor-pointer">
                     <Settings className="h-4 w-4" />
@@ -215,6 +218,7 @@ export function Header() {
                   <UsersRound className="h-5 w-5" />
                   建立球團
                 </Link>
+                {/* 
                 <Link
                   to="/course/new"
                   onClick={() => setMobileOpen(false)}
@@ -222,7 +226,8 @@ export function Header() {
                 >
                   <BookOpen className="h-5 w-5" />
                   建立課程
-                </Link>
+                </Link> 
+                */}
                 
                 <div className="h-px bg-border my-2" />
                 
