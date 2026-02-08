@@ -304,10 +304,12 @@ function ActivityItem({ activity, isPast = false }: ActivityItemProps) {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem>編輯活動</DropdownMenuItem>
-              <DropdownMenuItem>管理報名</DropdownMenuItem>
-              {!isPast && <DropdownMenuItem>臨打設定</DropdownMenuItem>}
-              {!isPast && <DropdownMenuItem>候補管理</DropdownMenuItem>}
+              <DropdownMenuItem>
+                <Link to={`/club/activities/${activity.id}/edit`}>編輯活動</Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem>
+                <Link to={`/club/activities/${activity.id}/participants`}>管理報名</Link>
+              </DropdownMenuItem>
               {!isPast && <DropdownMenuItem className="text-destructive">取消活動</DropdownMenuItem>}
             </DropdownMenuContent>
           </DropdownMenu>

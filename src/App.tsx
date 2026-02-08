@@ -14,6 +14,8 @@ import LineCallback from "./pages/LineCallback";
 import ClubDashboard from "./pages/ClubDashboard";
 import ClubNew from "./pages/ClubNew";
 import ClubNewActivity from "./pages/ClubNewActivity";
+import ClubEditActivity from "@/pages/ClubEditActivity";
+import ClubActivityParticipants from "@/pages/ClubActivityParticipants";
 import ClubActivities from "./pages/ClubActivities";
 import ClubMembers from "./pages/ClubMembers";
 import ClubPayments from "./pages/ClubPayments";
@@ -53,6 +55,8 @@ export default function App() {
               <Route path="/club/new" element={<ClubNew />} />
               <Route path="/club/new-activity" element={<ClubNewActivity />} />
               <Route path="/club/activities" element={<ClubActivities />} />
+              <Route path="/club/activities/:id/edit" element={<ClubEditActivity />} />
+              <Route path="/club/activities/:id/participants" element={<ClubActivityParticipants />} />
               <Route path="/club/members" element={<ClubMembers />} />
               <Route path="/club/payments" element={<ClubPayments />} />
               <Route path="/club/scores" element={<ClubScores />} />
