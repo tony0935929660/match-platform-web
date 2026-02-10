@@ -444,15 +444,17 @@ export interface PaymentResponse {
   userId: number;
   userName: string;
   paymentType: number;
-  paymentTypeName: string;
+  paymentTypeName?: string;
+  paymentTypeDisplay?: string;
   amount: number;
   remark: string | null;
-  paymentDate: string;
+  paymentDate: string | null;
   startDate: string | null;
   endDate: string | null;
-  status: number;
-  statusName: string;
-  createdAt: string;
+  status?: number;
+  statusName?: string;
+  createdAt?: string;
+  isPaid: boolean;
 }
 
 /**
@@ -483,6 +485,32 @@ export async function createPayment(token: string, groupId: number, data: Create
     return result.data as PaymentResponse;
   }
   return result as PaymentResponse;
+}
+
+/**
+ * 確認繳費
+ */
+export async function confirmPayment(token: string, groupId: number, paymentId: number): Promise<boolean> {
+  const response = await fetch(`${API_BASE_URL}/api/groups/${groupId}/payments/${paymentId}/confirm`, {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    let errorMsg = `確認繳費失敗 (${response.status})`;
+    try {
+      const errorJson = JSON.parse(errorText);
+      if (errorJson.message) errorMsg = errorJson.message;
+    } catch {}
+    throw new Error(errorMsg);
+  }
+
+  const result = await response.json();
+  return result.success;
 }
 
 /**

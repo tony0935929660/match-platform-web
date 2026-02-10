@@ -6,32 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, ArrowLeft, CheckCircle2, MoreVertical } from "lucide-react";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { getMatch, MatchResponse } from "@/services/matchApi";
-
-// Mock data for waiting list since API might not return it yet
-const MOCK_WAITING_LIST = [
-  {
-    id: 101,
-    name: "Waiting User 1",
-    avatar: "/placeholder.svg",
-    status: "waiting",
-    joinTime: "2024-02-10T10:30:00",
-  },
-  {
-    id: 102,
-    name: "Waiting User 2",
-    avatar: "/placeholder.svg",
-    status: "waiting",
-    joinTime: "2024-02-10T11:00:00",
-  }
-];
+import { Loader2, ArrowLeft, CheckCircle2 } from "lucide-react";
+import { getMatch, MatchResponse, generateUnpaidRecords } from "@/services/matchApi";
 
 export default function ClubActivityParticipants() {
   const { id } = useParams();
@@ -39,6 +15,7 @@ export default function ClubActivityParticipants() {
   const { toast } = useToast();
   
   const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [match, setMatch] = useState<MatchResponse | null>(null);
 
   useEffect(() => {
@@ -61,11 +38,26 @@ export default function ClubActivityParticipants() {
     fetchData();
   }, [id, token]);
 
-  const handleConfirmListAndGenerateRecords = () => {
-    toast({
-      title: "功能開發中",
-      description: "確認名單並產生收款紀錄 API 尚未串接",
-    });
+  const handleConfirmListAndGenerateRecords = async () => {
+    if (!id || !token) return;
+    
+    setIsSubmitting(true);
+    try {
+      await generateUnpaidRecords(token, id);
+      toast({
+        title: "成功",
+        description: "已確認名單並產生收款紀錄",
+      });
+    } catch (error) {
+      console.error("Failed to generate unpaid records", error);
+      toast({
+        title: "操作失敗",
+        description: error instanceof Error ? error.message : "產生收款紀錄時發生錯誤",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   if (isLoading) {
@@ -80,11 +72,28 @@ export default function ClubActivityParticipants() {
 
   if (!match) return null;
 
-  // Assuming match.participants contains the main list
-  // If waiting list is separate, we'd filter or fetch it here.
-  // For now, using mock data for waiting list as requested.
-  const mainList = match.participants || [];
-  const waitingList = MOCK_WAITING_LIST; // Replace with match.waitingList if available later
+  // Process participants based on requiredPeople
+  const allParticipants = match.participants || [];
+  let mainList: any[] = [];
+  let waitingList: any[] = [];
+
+  // Assuming participants are strings (names) based on new API payload
+  // Map them to objects for easier rendering
+  const mappedParticipants = allParticipants.map((p, index) => ({
+    name: typeof p === 'string' ? p : p.name, // Handle string or object
+    avatar: "/placeholder.svg", // Default
+    role: 2, // Default participant
+    id: index // Temporary ID
+  }));
+
+  if (match.requiredPeople === null || match.requiredPeople === undefined || match.requiredPeople === 0) {
+    // Unlimited spots, everyone is in main list
+    mainList = mappedParticipants;
+  } else {
+    // Limited spots
+    mainList = mappedParticipants.slice(0, match.requiredPeople);
+    waitingList = mappedParticipants.slice(match.requiredPeople);
+  }
 
   return (
     <MainLayout>
@@ -104,8 +113,12 @@ export default function ClubActivityParticipants() {
                 {new Date(match.dateTime).toLocaleDateString()} {new Date(match.dateTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
               </p>
             </div>
-            <Button onClick={handleConfirmListAndGenerateRecords} className="gap-2">
-              <CheckCircle2 className="h-4 w-4" />
+            <Button onClick={handleConfirmListAndGenerateRecords} className="gap-2" disabled={isSubmitting}>
+              {isSubmitting ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <CheckCircle2 className="h-4 w-4" />
+              )}
               確認名單並產生收款紀錄
             </Button>
           </div>
@@ -135,22 +148,10 @@ export default function ClubActivityParticipants() {
                         <div>
                           <div className="font-medium">{participant.name || "未知名稱"}</div>
                           <div className="text-xs text-muted-foreground">
-                            {participant.role === 1 ? "主辦人" : "參加者"}
+                            {/* Simple role logic, can be improved if API provides more info */}
+                            參加者
                           </div>
                         </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon">
-                              <MoreVertical className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem>查看個人檔案</DropdownMenuItem>
-                            <DropdownMenuItem className="text-destructive">移除名單</DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
                       </div>
                     </div>
                   ))}
@@ -163,7 +164,7 @@ export default function ClubActivityParticipants() {
             </CardContent>
           </Card>
 
-          {/* Waiting List - Only show if waiting list management is needed */}
+          {/* Waiting List */}
           <Card>
             <CardHeader>
               <CardTitle className="text-lg">
@@ -176,24 +177,19 @@ export default function ClubActivityParticipants() {
             <CardContent>
                {waitingList.length > 0 ? (
                 <div className="divide-y">
-                  {waitingList.map((waiter) => (
-                    <div key={waiter.id} className="flex items-center justify-between py-4 first:pt-0 last:pb-0">
+                  {waitingList.map((waiter, index) => (
+                    <div key={index} className="flex items-center justify-between py-4 first:pt-0 last:pb-0">
                       <div className="flex items-center gap-3">
                         <Avatar>
                           <AvatarImage src={waiter.avatar} />
-                          <AvatarFallback>{waiter.name[0]}</AvatarFallback>
+                          <AvatarFallback>{waiter.name?.[0]}</AvatarFallback>
                         </Avatar>
                         <div>
                           <div className="font-medium">{waiter.name}</div>
                           <div className="text-xs text-muted-foreground">
-                            {new Date(waiter.joinTime).toLocaleString()} 排入
+                             候補順位 {index + 1}
                           </div>
                         </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                         <Button size="sm" variant="outline" className="text-green-600 hover:text-green-700 hover:bg-green-50">
-                            加入正式名單
-                         </Button>
                       </div>
                     </div>
                   ))}
