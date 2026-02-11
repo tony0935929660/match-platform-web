@@ -31,7 +31,7 @@ const navItems = [
   { label: "首頁", href: "/", icon: Home },
   { label: "找活動", href: "/activities", icon: Calendar },
   // { label: "找課程", href: "/courses", icon: BookOpen },
-  { label: "球團管理", href: "/club", icon: Users },
+  { label: "我的球團", href: "/club", icon: Users },
 ];
 
 export function Header() {
@@ -136,7 +136,7 @@ export function Header() {
                 <DropdownMenuItem asChild>
                   <Link to="/club" className="flex items-center gap-2 cursor-pointer">
                     <Users className="h-4 w-4" />
-                    球團管理
+                    我的球團
                   </Link>
                 </DropdownMenuItem>
                 {/* 

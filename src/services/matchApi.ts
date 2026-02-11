@@ -238,5 +238,25 @@ export async function leaveMatch(token: string, id: string): Promise<boolean> {
   return result.success;
 }
 
+/**
+ * 產生未付款紀錄 (確認名單)
+ */
+export async function generateUnpaidRecords(token: string, id: string): Promise<boolean> {
+  const response = await fetch(`${API_BASE_URL}/api/matches/${id}/unpaid`, {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`產生收款紀錄失敗: ${errorText}`);
+  }
+
+  return true;
+}
+
 
 

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,9 +34,10 @@ import {
   ChevronRight,
   Trash2,
   X,
-  UserPlus
+  UserPlus,
+  Loader2
 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -44,79 +45,23 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { toast } from "@/hooks/use-toast";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "@/contexts/AuthContext";
+import { getMatches, MatchResponse, getMatch } from "@/services/matchApi";
+import { getGroups } from "@/services/groupApi";
+import { createScoreRecord, ScoreRecordRequest } from "@/services/scoreApi";
 
-// Mock activities with registered participants
-const mockActivitiesWithScores = [
-  {
-    id: "1",
-    title: "週三羽球交流賽",
-    sport: "badminton" as SportType,
-    date: "12/04 (三)",
-    time: "19:00-21:00",
-    location: "台北市大安運動中心",
-    participants: [
-      { id: "p1", name: "王小明" },
-      { id: "p2", name: "李大華" },
-      { id: "p3", name: "陳美玲" },
-      { id: "p4", name: "黃志強" },
-      { id: "p5", name: "林小芳" },
-      { id: "p6", name: "張明德" },
-    ],
-    scores: [
-      { id: "s1", teamA: ["王小明"], teamB: ["李大華"], scoreA: 21, scoreB: 18, type: "1v1" },
-      { id: "s2", teamA: ["陳美玲", "黃志強"], teamB: ["林小芳", "張明德"], scoreA: 21, scoreB: 15, type: "2v2" },
-      { id: "s3", teamA: ["林小芳"], teamB: ["王小明"], scoreA: 21, scoreB: 12, type: "1v1" },
-    ],
-    matchCount: 3,
-  },
-  {
-    id: "2",
-    title: "週六籃球3v3鬥牛",
-    sport: "basketball" as SportType,
-    date: "11/30 (六)",
-    time: "15:00-18:00",
-    location: "台北市中山運動中心",
-    participants: [
-      { id: "p1", name: "王小明" },
-      { id: "p2", name: "李大華" },
-      { id: "p3", name: "陳美玲" },
-      { id: "p4", name: "黃志強" },
-      { id: "p5", name: "林小芳" },
-      { id: "p6", name: "張明德" },
-    ],
-    scores: [
-      { id: "s4", teamA: ["王小明", "李大華", "陳美玲"], teamB: ["黃志強", "林小芳", "張明德"], scoreA: 21, scoreB: 19, type: "3v3" },
-    ],
-    matchCount: 1,
-  },
-  {
-    id: "3",
-    title: "排球友誼賽",
-    sport: "volleyball" as SportType,
-    date: "11/27 (三)",
-    time: "19:00-21:00",
-    location: "台北市大安運動中心",
-    participants: [
-      { id: "p1", name: "王小明" },
-      { id: "p2", name: "李大華" },
-      { id: "p3", name: "陳美玲" },
-      { id: "p4", name: "黃志強" },
-      { id: "p5", name: "林小芳" },
-      { id: "p6", name: "張明德" },
-      { id: "p7", name: "周美麗" },
-      { id: "p8", name: "吳建國" },
-      { id: "p9", name: "劉雅琪" },
-      { id: "p10", name: "許志豪" },
-      { id: "p11", name: "蔡宜君" },
-      { id: "p12", name: "鄭大同" },
-    ],
-    scores: [
-      { id: "s5", teamA: ["王小明", "李大華", "陳美玲", "黃志強", "林小芳", "張明德"], teamB: ["周美麗", "吳建國", "劉雅琪", "許志豪", "蔡宜君", "鄭大同"], scoreA: 25, scoreB: 21, type: "6v6" },
-    ],
-    matchCount: 1,
-  },
-];
+// Mapping for sport ID to SportBadge type
+const sportValueToType: Record<number, SportType> = {
+  1: "badminton",
+  2: "tennis",
+  3: "basketball",
+  4: "volleyball",
+  5: "table-tennis",
+  6: "soccer",
+};
 
+// Mock rankings (keep for now as we don't have API for stats)
 const mockRankings = [
   { rank: 1, name: "林小芳", wins: 12, losses: 2, winRate: "85.7%" },
   { rank: 2, name: "王小明", wins: 10, losses: 3, winRate: "76.9%" },
@@ -145,20 +90,141 @@ interface ScoreEntry {
   scoreB: string;
 }
 
+const getSportType = (id: number): SportType => {
+  switch (id) {
+    case 1: return "badminton";
+    case 2: return "tennis";
+    case 3: return "table-tennis";
+    case 4: return "basketball";
+    case 5: return "volleyball";
+    case 6: return "soccer";
+    default: return "badminton";
+  }
+};
+
 export default function ClubScores() {
+  const { token } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const paramGroupId = searchParams.get("groupId");
+  const queryClient = useQueryClient();
+
+  // Fetch groups to determine ID if missing
+  const { data: groups } = useQuery({
+    queryKey: ['groups'],
+    queryFn: () => getGroups(token!),
+    enabled: !!token,
+  });
+
+  const groupId = paramGroupId || (groups && groups.length > 0 ? groups[0].id.toString() : null);
+
+  // Update URL if using default group
+  useEffect(() => {
+    if (!paramGroupId && groupId) {
+      setSearchParams({ groupId }, { replace: true });
+    }
+  }, [paramGroupId, groupId, setSearchParams]);
+
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedActivity, setSelectedActivity] = useState<typeof mockActivitiesWithScores[0] | null>(null);
+  const [selectedActivity, setSelectedActivity] = useState<MatchResponse | null>(null);
   const [showAddScores, setShowAddScores] = useState(false);
-  const [addingToActivity, setAddingToActivity] = useState<typeof mockActivitiesWithScores[0] | null>(null);
+  const [addingToActivity, setAddingToActivity] = useState<MatchResponse | null>(null);
+  const [activityParticipants, setActivityParticipants] = useState<any[]>([]); // Store fetched participants
   const [scoreEntries, setScoreEntries] = useState<ScoreEntry[]>([
     { id: "1", matchType: "1v1", customTeamSize: 1, teamA: [], teamB: [], scoreA: "", scoreB: "" }
   ]);
 
-  const filteredActivities = mockActivitiesWithScores.filter(activity =>
-    activity.title.includes(searchQuery) || activity.date.includes(searchQuery)
-  );
+  // Fetch matches
+  const { data: matchesPage, isLoading } = useQuery({
+    queryKey: ['matches', groupId],
+    queryFn: () => getMatches(token!, { groupId: Number(groupId), pageSize: 100 }),
+    enabled: !!token && !!groupId,
+  });
 
-  const totalMatches = mockActivitiesWithScores.reduce((sum, a) => sum + a.matchCount, 0);
+  const matches = matchesPage?.content || [];
+
+  // Filter matches
+  const filteredActivities = matches
+    .filter(activity => {
+      // Remove time restriction to ensure user can see created activities
+      // const isStarted = new Date(activity.dateTime) <= new Date();
+      const matchesSearch = activity.name.includes(searchQuery) || activity.dateTime.includes(searchQuery);
+      return matchesSearch;
+    })
+    .sort((a, b) => new Date(b.dateTime).getTime() - new Date(a.dateTime).getTime());
+  
+  // Need to fetch full match details when selecting for adding scores to get participants
+  const fetchActivityDetails = async (activity: MatchResponse) => {
+    try {
+      const detailedMatch = await getMatch(token!, activity.id.toString());
+      setAddingToActivity(detailedMatch);
+      // Extract participants safely
+      const participants = detailedMatch.participants || [];
+      // Normalize participant data to a simple list of names for the UI to use
+      setActivityParticipants(participants.map(p => ({
+        name: p.user?.name || p.user?.lineName || "Unknown",
+        id: p.userId
+      })));
+    } catch (e) {
+      console.error("Failed to fetch match details", e);
+      toast({
+        title: "載入失敗",
+        description: "無法取得活動參加者名單",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleActivityClick = async (activity: MatchResponse) => {
+    try {
+      // Show loading state or open dialog immediately with partial data?
+      // Better to fetch then open to ensure data consistency
+      const detailedMatch = await getMatch(token!, activity.id.toString());
+      setSelectedActivity(detailedMatch);
+    } catch (e) {
+      toast({
+        title: "載入詳細資料失敗",
+        variant: "destructive"
+      });
+      // Fallback to partial data if fetch fails
+      setSelectedActivity(activity);
+    }
+  };
+
+  const createScoreMutation = useMutation({
+    mutationFn: async (data: { matchId: number, entries: ScoreEntry[] }) => {
+      // Create creation promises for all entries
+      const promises = data.entries.map(entry => {
+        const payload: ScoreRecordRequest = {
+          matchId: data.matchId,
+          teamAName: entry.teamA.join(" & "), // Join names for API
+          teamBName: entry.teamB.join(" & "),
+          teamAScore: Number(entry.scoreA),
+          teamBScore: Number(entry.scoreB)
+        };
+        return createScoreRecord(token!, payload);
+      });
+      return Promise.all(promises);
+    },
+    onSuccess: (results) => {
+      toast({
+        title: "儲存成功",
+        description: `已新增 ${results.length} 筆比賽紀錄`,
+      });
+      setShowAddScores(false);
+      setAddingToActivity(null);
+      setScoreEntries([{ id: "1", matchType: "1v1", customTeamSize: 1, teamA: [], teamB: [], scoreA: "", scoreB: "" }]);
+      queryClient.invalidateQueries({ queryKey: ['matches', groupId] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "儲存失敗",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  });
+
+  const totalMatches = 0; // matches.reduce((sum, a) => sum + (a.scoreCount || 0), 0); // Need API support for correct count
 
   const getTeamSize = (entry: ScoreEntry) => {
     if (entry.matchType === "custom") return entry.customTeamSize;
@@ -219,8 +285,8 @@ export default function ClubScores() {
     }));
   };
 
-  const handleOpenAddScores = (activity: typeof mockActivitiesWithScores[0]) => {
-    setAddingToActivity(activity);
+  const handleOpenAddScores = (activity: MatchResponse) => {
+    fetchActivityDetails(activity);
     setScoreEntries([{ id: "1", matchType: "1v1", customTeamSize: 1, teamA: [], teamB: [], scoreA: "", scoreB: "" }]);
     setShowAddScores(true);
   };
@@ -243,12 +309,9 @@ export default function ClubScores() {
       return;
     }
 
-    toast({
-      title: "儲存成功",
-      description: `已新增 ${validEntries.length} 筆比賽紀錄`,
-    });
-    setShowAddScores(false);
-    setAddingToActivity(null);
+    if (addingToActivity) {
+      createScoreMutation.mutate({ matchId: addingToActivity.id, entries: validEntries });
+    }
   };
 
   const formatTeamDisplay = (team: string[]) => {
@@ -258,7 +321,7 @@ export default function ClubScores() {
 
   const getAvailablePlayers = (entry: ScoreEntry) => {
     if (!addingToActivity) return [];
-    return addingToActivity.participants.filter(
+    return activityParticipants.filter(
       p => !entry.teamA.includes(p.name) && !entry.teamB.includes(p.name)
     );
   };
@@ -287,7 +350,7 @@ export default function ClubScores() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
           <Card>
             <CardContent className="p-4">
-              <div className="text-2xl font-bold text-foreground">{mockActivitiesWithScores.length}</div>
+              <div className="text-2xl font-bold text-foreground">{matches?.length || 0}</div>
               <div className="text-sm text-muted-foreground">有紀錄的活動</div>
             </CardContent>
           </Card>
@@ -334,36 +397,35 @@ export default function ClubScores() {
 
             {/* Activities List */}
             <div className="space-y-4">
-              {filteredActivities.map((activity) => (
+              {filteredActivities?.map((activity) => (
                 <Card
                   key={activity.id}
                   className="cursor-pointer hover:shadow-card-hover transition-all"
-                  onClick={() => setSelectedActivity(activity)}
+                  onClick={() => handleActivityClick(activity)}
                 >
                   <CardContent className="p-4 md:p-6">
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-2">
-                          <SportBadge sport={activity.sport} size="sm" />
-                          <Badge variant="secondary">{activity.matchCount} 場比賽</Badge>
+                          <SportBadge sport={sportValueToType[activity.sport] || "badminton"} size="sm" />
                         </div>
-                        <h3 className="font-semibold text-foreground text-lg mb-2">{activity.title}</h3>
+                        <h3 className="font-semibold text-foreground text-lg mb-2">{activity.name}</h3>
                         <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
                           <div className="flex items-center gap-1">
                             <Calendar className="h-3.5 w-3.5" />
-                            {activity.date}
+                            {new Date(activity.dateTime).toLocaleDateString()}
                           </div>
                           <div className="flex items-center gap-1">
                             <Clock className="h-3.5 w-3.5" />
-                            {activity.time}
+                            {new Date(activity.dateTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                           </div>
                           <div className="flex items-center gap-1">
                             <MapPin className="h-3.5 w-3.5" />
-                            {activity.location}
+                            {activity.address}
                           </div>
                           <div className="flex items-center gap-1">
                             <Users className="h-3.5 w-3.5" />
-                            {activity.participants.length} 人參與
+                            {activity.participants?.length || 0} 人參與
                           </div>
                         </div>
                       </div>
@@ -441,28 +503,28 @@ export default function ClubScores() {
               <>
                 <DialogHeader>
                   <DialogTitle className="flex items-center gap-2">
-                    <SportBadge sport={selectedActivity.sport} size="sm" />
-                    {selectedActivity.title}
+                    <SportBadge sport={sportValueToType[selectedActivity.sport] || "badminton"} size="sm" />
+                    {selectedActivity.name}
                   </DialogTitle>
                 </DialogHeader>
                 <div className="space-y-4">
                   <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
                     <div className="flex items-center gap-1">
                       <Calendar className="h-4 w-4" />
-                      {selectedActivity.date}
+                      {new Date(selectedActivity.dateTime).toLocaleDateString()}
                     </div>
                     <div className="flex items-center gap-1">
                       <Clock className="h-4 w-4" />
-                      {selectedActivity.time}
+                      {new Date(selectedActivity.dateTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </div>
                     <div className="flex items-center gap-1">
                       <MapPin className="h-4 w-4" />
-                      {selectedActivity.location}
+                      {selectedActivity.address}
                     </div>
                   </div>
 
                   <div className="flex items-center justify-between">
-                    <h4 className="font-semibold text-foreground">比賽紀錄 ({selectedActivity.scores.length})</h4>
+                    <h4 className="font-semibold text-foreground">比賽紀錄</h4>
                     <Button
                       size="sm"
                       className="gap-2"
@@ -477,77 +539,18 @@ export default function ClubScores() {
                   </div>
 
                   <div className="space-y-3">
-                    {selectedActivity.scores.map((score, index) => (
-                      <div key={score.id} className="p-4 rounded-lg bg-secondary">
-                        <div className="flex items-center justify-between mb-2">
-                          <Badge variant="outline">{score.type}</Badge>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon" className="h-8 w-8">
-                                <MoreVertical className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem>編輯</DropdownMenuItem>
-                              <DropdownMenuItem className="text-destructive">刪除</DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </div>
-                        <div className="flex items-center gap-4">
-                          <div className="flex-1 text-right">
-                            <div className="font-medium text-foreground">
-                              {score.teamA.length <= 2 
-                                ? score.teamA.join(" / ")
-                                : (
-                                  <div className="space-y-0.5">
-                                    {score.teamA.map((p, i) => (
-                                      <div key={i} className="text-sm">{p}</div>
-                                    ))}
-                                  </div>
-                                )
-                              }
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-background shrink-0">
-                            <span className={`text-xl font-bold ${score.scoreA > score.scoreB ? "text-primary" : "text-muted-foreground"}`}>
-                              {score.scoreA}
-                            </span>
-                            <span className="text-muted-foreground">:</span>
-                            <span className={`text-xl font-bold ${score.scoreB > score.scoreA ? "text-primary" : "text-muted-foreground"}`}>
-                              {score.scoreB}
-                            </span>
-                          </div>
-                          <div className="flex-1 text-left">
-                            <div className="font-medium text-foreground">
-                              {score.teamB.length <= 2 
-                                ? score.teamB.join(" / ")
-                                : (
-                                  <div className="space-y-0.5">
-                                    {score.teamB.map((p, i) => (
-                                      <div key={i} className="text-sm">{p}</div>
-                                    ))}
-                                  </div>
-                                )
-                              }
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-
-                    {selectedActivity.scores.length === 0 && (
-                      <div className="text-center py-8 text-muted-foreground">
+                     <div className="text-center py-8 text-muted-foreground">
                         <Trophy className="h-12 w-12 mx-auto mb-3 opacity-30" />
-                        <p>尚無比賽紀錄</p>
+                        <p>紀錄功能開發中</p>
                       </div>
-                    )}
                   </div>
 
                   <div className="pt-4 border-t">
-                    <h4 className="font-semibold text-foreground mb-3">參與成員 ({selectedActivity.participants.length})</h4>
+                    <h4 className="font-semibold text-foreground mb-3">參與成員 ({selectedActivity.participants?.length || 0})</h4>
                     <div className="flex flex-wrap gap-2">
-                      {selectedActivity.participants.map((p) => (
-                        <Badge key={p.id} variant="secondary">{p.name}</Badge>
+                    {/* Assuming participants is array of {id, name} or similar. If not, safe access */}
+                      {selectedActivity.participants?.map((p: any, i: number) => (
+                        <Badge key={p.id || i} variant="secondary">{p.name || p}</Badge>
                       ))}
                     </div>
                   </div>
@@ -567,17 +570,17 @@ export default function ClubScores() {
               <div className="space-y-6">
                 <div className="p-4 rounded-lg bg-secondary">
                   <div className="flex items-center gap-2 mb-2">
-                    <SportBadge sport={addingToActivity.sport} size="sm" />
-                    <span className="font-semibold text-foreground">{addingToActivity.title}</span>
+                    <SportBadge sport={sportValueToType[addingToActivity.sport] || "badminton"} size="sm" />
+                    <span className="font-semibold text-foreground">{addingToActivity.name}</span>
                   </div>
                   <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
                     <div className="flex items-center gap-1">
                       <Calendar className="h-3.5 w-3.5" />
-                      {addingToActivity.date}
+                      {new Date(addingToActivity.dateTime).toLocaleDateString()}
                     </div>
                     <div className="flex items-center gap-1">
                       <Users className="h-3.5 w-3.5" />
-                      {addingToActivity.participants.length} 人參與
+                      {activityParticipants.length} 人參與
                     </div>
                   </div>
                 </div>

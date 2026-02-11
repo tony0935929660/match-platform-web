@@ -28,7 +28,7 @@ import {
   CheckCircle,
   Loader2,
 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 
 // Map backend sport value to frontend SportType
 const sportValueToType: Record<number, SportType> = {
@@ -43,6 +43,8 @@ const sportValueToType: Record<number, SportType> = {
 export default function ClubNewActivity() {
   const navigate = useNavigate();
   const { token } = useAuth();
+  const [searchParams] = useSearchParams();
+  const groupId = searchParams.get("groupId");
   const [showSuccess, setShowSuccess] = useState(false);
   
   const [activity, setActivity] = useState({
@@ -86,8 +88,10 @@ export default function ClubNewActivity() {
     enabled: !!token,
   });
 
-  // Get the first group as default (user should have at least one group to access this page)
-  const currentGroup = groups[0];
+  // Get the selected group or fall back to the first one
+  const currentGroup = groupId 
+    ? groups.find(g => g.id.toString() === groupId) 
+    : groups[0];
 
   // Create match mutation
   const createMatchMutation = useMutation({
@@ -109,10 +113,10 @@ export default function ClubNewActivity() {
   });
 
   const handleSubmit = () => {
-    if (!activity.title || !activity.date || !activity.location) {
+    if (!activity.title || !activity.date || !activity.location || !activity.address) {
       toast({
         title: "請填寫必要欄位",
-        description: "活動名稱、日期和地點為必填",
+        description: "活動名稱、日期、地點和詳細地址為必填",
         variant: "destructive",
       });
       return;
@@ -223,7 +227,7 @@ export default function ClubNewActivity() {
             </Card>
 
             <div className="flex gap-3">
-              <Button variant="outline" className="flex-1" onClick={() => navigate("/club")}>
+              <Button variant="outline" className="flex-1" onClick={() => navigate(`/club/dashboard?groupId=${currentGroup?.id}`)}>
                 返回球團
               </Button>
               <Button className="flex-1" onClick={() => {
@@ -263,9 +267,9 @@ export default function ClubNewActivity() {
       <div className="container py-6 md:py-8">
         {/* Header */}
         <div className="mb-6">
-          <Link to="/club" className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-4">
+          <Link to={`/club/dashboard?groupId=${currentGroup?.id}`} className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-4">
             <ArrowLeft className="h-4 w-4" />
-            返回球團管理
+            返回我的球團
           </Link>
           <h1 className="text-2xl md:text-3xl font-bold text-foreground">新增活動</h1>
           <p className="text-muted-foreground mt-1">為你的球團建立新的活動</p>
@@ -396,7 +400,7 @@ export default function ClubNewActivity() {
 
                 {/* Address */}
                 <div className="space-y-2">
-                  <Label htmlFor="address">詳細地址</Label>
+                  <Label htmlFor="address">詳細地址 *</Label>
                   <Input
                     id="address"
                     placeholder="例：台北市大安區辛亥路三段55號"

@@ -41,6 +41,7 @@ import {
   getGroupMembers, 
   getGroupPayments,
   createPayment,
+  confirmPayment,
   CreatePaymentRequest,
   PaymentResponse,
   GroupMemberResponse 
@@ -112,6 +113,25 @@ export default function ClubPayments() {
     },
   });
 
+  // 確認繳費 mutation
+  const confirmPaymentMutation = useMutation({
+    mutationFn: (paymentId: number) => confirmPayment(token!, Number(groupId), paymentId),
+    onSuccess: () => {
+      toast({
+        title: "確認成功",
+        description: "繳費狀態已更新",
+      });
+      queryClient.invalidateQueries({ queryKey: ['groupPayments', groupId] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "確認失敗",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
   // 單次繳費的 paymentType 值（假設為 1，可根據實際 API 調整）
   const isSinglePayment = newPayment.paymentType === 1;
 
@@ -145,11 +165,18 @@ export default function ClubPayments() {
     });
   };
   
-  const pendingPayments = payments.filter((p: PaymentResponse) => p.status === 1); // pending
-  const unpaidPayments = payments.filter((p: PaymentResponse) => p.status === 0); // unpaid
-  const paidPayments = payments.filter((p: PaymentResponse) => p.status === 2); // paid
+  const unpaidPayments = payments.filter((p: PaymentResponse) => !p.isPaid);
+  const paidPayments = payments.filter((p: PaymentResponse) => p.isPaid);
 
-  const filteredPayments = payments.filter((payment: PaymentResponse) => 
+  const filteredAll = payments.filter((payment: PaymentResponse) => 
+    payment.userName?.includes(searchQuery)
+  );
+
+  const filteredUnpaid = unpaidPayments.filter((payment: PaymentResponse) => 
+    payment.userName?.includes(searchQuery)
+  );
+  
+  const filteredPaid = paidPayments.filter((payment: PaymentResponse) => 
     payment.userName?.includes(searchQuery)
   );
 
@@ -297,14 +324,14 @@ export default function ClubPayments() {
           </Card>
           <Card>
             <CardContent className="p-4">
-              <div className="text-2xl font-bold text-foreground">{paidPayments.length}</div>
-              <div className="text-sm text-muted-foreground">已確認</div>
+              <div className="text-2xl font-bold text-foreground">{payments.length}</div>
+              <div className="text-sm text-muted-foreground">總筆數</div>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="p-4">
-              <div className="text-2xl font-bold text-warning">{pendingPayments.length}</div>
-              <div className="text-sm text-muted-foreground">待確認</div>
+              <div className="text-2xl font-bold text-primary">{paidPayments.length}</div>
+              <div className="text-sm text-muted-foreground">已繳費</div>
             </CardContent>
           </Card>
           <Card>
@@ -320,7 +347,7 @@ export default function ClubPayments() {
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="搜尋成員或活動..."
+              placeholder="搜尋成員..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-10"
@@ -336,9 +363,8 @@ export default function ClubPayments() {
         <Tabs defaultValue="all" className="space-y-6">
           <TabsList>
             <TabsTrigger value="all">全部 ({payments.length})</TabsTrigger>
-            <TabsTrigger value="pending">待確認 ({pendingPayments.length})</TabsTrigger>
             <TabsTrigger value="unpaid">未繳費 ({unpaidPayments.length})</TabsTrigger>
-            <TabsTrigger value="paid">已確認 ({paidPayments.length})</TabsTrigger>
+            <TabsTrigger value="paid">已繳費 ({paidPayments.length})</TabsTrigger>
           </TabsList>
 
           <TabsContent value="all">
@@ -351,33 +377,20 @@ export default function ClubPayments() {
                   <div className="flex justify-center py-8">
                     <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
                   </div>
-                ) : filteredPayments.length === 0 ? (
+                ) : filteredAll.length === 0 ? (
                   <div className="text-center py-8 text-muted-foreground">
                     {searchQuery ? "找不到符合的紀錄" : "目前沒有繳費紀錄"}
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {filteredPayments.map((payment: PaymentResponse) => (
-                      <PaymentItem key={payment.id} payment={payment} paymentTypes={paymentTypes} />
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="pending">
-            <Card>
-              <CardHeader>
-                <CardTitle>待確認收款</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {pendingPayments.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">沒有待確認的紀錄</div>
-                ) : (
-                  <div className="space-y-3">
-                    {pendingPayments.map((payment: PaymentResponse) => (
-                      <PaymentItem key={payment.id} payment={payment} paymentTypes={paymentTypes} />
+                    {filteredAll.map((payment: PaymentResponse) => (
+                      <PaymentItem 
+                        key={payment.id} 
+                        payment={payment} 
+                        paymentTypes={paymentTypes}
+                        onConfirm={(id) => confirmPaymentMutation.mutate(id)}
+                        isConfirming={confirmPaymentMutation.isPending}
+                      />
                     ))}
                   </div>
                 )}
@@ -388,15 +401,21 @@ export default function ClubPayments() {
           <TabsContent value="unpaid">
             <Card>
               <CardHeader>
-                <CardTitle>未繳費</CardTitle>
+                <CardTitle>未繳費清單</CardTitle>
               </CardHeader>
               <CardContent>
-                {unpaidPayments.length === 0 ? (
+                {filteredUnpaid.length === 0 ? (
                   <div className="text-center py-8 text-muted-foreground">沒有未繳費的紀錄</div>
                 ) : (
                   <div className="space-y-3">
-                    {unpaidPayments.map((payment: PaymentResponse) => (
-                      <PaymentItem key={payment.id} payment={payment} paymentTypes={paymentTypes} />
+                    {filteredUnpaid.map((payment: PaymentResponse) => (
+                      <PaymentItem 
+                        key={payment.id} 
+                        payment={payment} 
+                        paymentTypes={paymentTypes}
+                        onConfirm={(id) => confirmPaymentMutation.mutate(id)}
+                        isConfirming={confirmPaymentMutation.isPending}
+                      />
                     ))}
                   </div>
                 )}
@@ -407,15 +426,21 @@ export default function ClubPayments() {
           <TabsContent value="paid">
             <Card>
               <CardHeader>
-                <CardTitle>已確認收款</CardTitle>
+                <CardTitle>已繳費清單</CardTitle>
               </CardHeader>
               <CardContent>
-                {paidPayments.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">沒有已確認的紀錄</div>
+                {filteredPaid.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">沒有已繳費的紀錄</div>
                 ) : (
                   <div className="space-y-3">
-                    {paidPayments.map((payment: PaymentResponse) => (
-                      <PaymentItem key={payment.id} payment={payment} paymentTypes={paymentTypes} />
+                    {filteredPaid.map((payment: PaymentResponse) => (
+                      <PaymentItem 
+                        key={payment.id} 
+                        payment={payment} 
+                        paymentTypes={paymentTypes}
+                        onConfirm={(id) => confirmPaymentMutation.mutate(id)}
+                        isConfirming={confirmPaymentMutation.isPending}
+                      />
                     ))}
                   </div>
                 )}
@@ -423,15 +448,27 @@ export default function ClubPayments() {
             </Card>
           </TabsContent>
         </Tabs>
+
       </div>
     </MainLayout>
   );
 }
 
-function PaymentItem({ payment, paymentTypes }: { payment: PaymentResponse; paymentTypes: PaymentTypeEnum[] }) {
-  const paymentTypeName = paymentTypes.find(t => t.value === payment.paymentType)?.displayName || payment.paymentTypeName || "未知";
-  const formatDate = (dateString: string) => {
-    if (!dateString) return "";
+function PaymentItem({ 
+  payment, 
+  paymentTypes,
+  onConfirm,
+  isConfirming 
+}: { 
+  payment: PaymentResponse; 
+  paymentTypes: PaymentTypeEnum[];
+  onConfirm: (id: number) => void;
+  isConfirming: boolean;
+}) {
+  const paymentTypeName = payment.paymentTypeDisplay || paymentTypes.find(t => t.value === payment.paymentType)?.displayName || "未知";
+  
+  const formatDate = (dateString: string | null) => {
+    if (!dateString) return "-";
     const date = new Date(dateString);
     return `${date.getFullYear()}/${String(date.getMonth() + 1).padStart(2, '0')}/${String(date.getDate()).padStart(2, '0')}`;
   };
@@ -440,33 +477,31 @@ function PaymentItem({ payment, paymentTypes }: { payment: PaymentResponse; paym
     <div className="flex items-center justify-between p-4 rounded-lg bg-secondary">
       <div className="flex-1">
         <div className="font-medium text-foreground">{payment.userName}</div>
-        <div className="text-sm text-muted-foreground">{payment.remark || "-"}</div>
-        <div className="text-xs text-muted-foreground">{formatDate(payment.paymentDate)}</div>
+        <div className="text-sm text-muted-foreground">{payment.remark || paymentTypeName}</div>
+        <div className="text-xs text-muted-foreground">{payment.paymentDate ? formatDate(payment.paymentDate) : "尚無付款日期"}</div>
       </div>
       <div className="flex items-center gap-4">
-        <Badge variant="secondary">
+        {/* <Badge variant="secondary">
           {paymentTypeName}
-        </Badge>
+        </Badge> */ }
         <div className="text-right min-w-[80px]">
           <div className="font-semibold">${payment.amount.toLocaleString()}</div>
         </div>
-        {payment.status === 1 && (
-          <div className="flex gap-2">
-            <Button size="sm" variant="outline" className="gap-1">
-              <CheckCircle className="h-3 w-3" />
-              確認
+        
+        {payment.isPaid ? (
+          <Badge variant="outline" className="text-green-600 border-green-600 bg-green-50">已繳費</Badge>
+        ) : (
+          <div className="flex items-center gap-2">
+            <Button 
+              size="sm" 
+              variant="default"
+              onClick={() => onConfirm(payment.id)}
+              disabled={isConfirming}
+            >
+              確認收款
             </Button>
-            <Button size="sm" variant="ghost" className="gap-1 text-destructive">
-              <XCircle className="h-3 w-3" />
-              拒絕
-            </Button>
+            <Badge variant="destructive">未繳費</Badge>
           </div>
-        )}
-        {payment.status === 2 && (
-          <Badge variant="outline" className="text-primary border-primary">已確認</Badge>
-        )}
-        {payment.status === 0 && (
-          <Badge variant="destructive">未繳費</Badge>
         )}
       </div>
     </div>

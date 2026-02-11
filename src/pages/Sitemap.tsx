@@ -27,7 +27,7 @@ const sitemapSections = [
     title: "球團功能",
     icon: Users,
     links: [
-      { label: "球團管理", href: "/club", description: "管理您的球團" },
+      { label: "我的球團", href: "/club", description: "查看您的球團" },
       { label: "建立球團", href: "/club/new", description: "創建新的運動球團" },
       { label: "活動管理", href: "/club/activities", description: "管理球團活動" },
       { label: "成員管理", href: "/club/members", description: "管理球團成員" },
