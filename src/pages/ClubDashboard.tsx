@@ -32,7 +32,7 @@ import {
   MapPin,
   QrCode
 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   DropdownMenu,
@@ -128,9 +128,13 @@ const getSportType = (id: number): SportType => {
 export default function ClubDashboard() {
   const { token, user } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const queryClient = useQueryClient();
   const [memberToDelete, setMemberToDelete] = useState<GroupMemberResponse | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+
+  const groupId = searchParams.get("groupId");
 
   const { data: groups, isLoading } = useQuery({
     queryKey: ['groups'],
@@ -138,12 +142,29 @@ export default function ClubDashboard() {
     enabled: !!token,
   });
 
-  const currentClub = groups?.[0];
+  // Find the requested club, or default to the first one if not specified
+  // If groupId is specified but not found (and not loading), we might want to redirect or show error
+  const currentClub = groupId 
+    ? groups?.find(g => g.id.toString() === groupId) 
+    : groups?.[0];
+
+  // If we're done loading and still don't have a club, redirect to list
+  if (!isLoading && groups && groups.length > 0 && !currentClub) {
+     // Optional: navigate("/club");
+     // But for now, let's just let it render (it might crash or show empty state if we don't handle currentClub being null further down)
+  }
+  
+  // If no groups at all, redirect to new?
+  if (!isLoading && groups && groups.length === 0) {
+    // navigate("/club/new"); 
+    // Better to just show empty state or let ClubList handle it.
+  }
 
   // Fetch roles
   const { data: roles = [] } = useQuery({
     queryKey: ['groupRoles'],
     queryFn: getGroupRoles,
+    enabled: !!token, // Added enabled check just in case
   });
 
   // Fetch members when we have a club
@@ -290,7 +311,7 @@ export default function ClubDashboard() {
             </div>
           </div>
           <div className="flex gap-2">
-            <Link to="/club/new-activity">
+            <Link to={`/club/new-activity?groupId=${currentClub?.id}`}>
               <Button className="gap-2">
                 <Plus className="h-4 w-4" />
                 新增活動
@@ -575,20 +596,26 @@ export default function ClubDashboard() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
                 <Card>
                   <CardContent className="p-6">
-                    <div className="text-2xl font-bold text-foreground">$12,400</div>
+                    <div className="text-2xl font-bold text-foreground">
+                      ${payments.filter((p: PaymentResponse) => p.isPaid).reduce((sum, p) => sum + p.amount, 0).toLocaleString()}
+                    </div>
                     <div className="text-sm text-muted-foreground">本季總收入</div>
                   </CardContent>
                 </Card>
                 <Card>
                   <CardContent className="p-6">
-                    <div className="text-2xl font-bold text-foreground">38</div>
+                    <div className="text-2xl font-bold text-foreground">
+                      {payments.filter((p: PaymentResponse) => p.isPaid).length}
+                    </div>
                     <div className="text-sm text-muted-foreground">已繳費成員</div>
                   </CardContent>
                 </Card>
                 <Card>
                   <CardContent className="p-6">
-                    <div className="text-2xl font-bold text-warning">4</div>
-                    <div className="text-sm text-muted-foreground">待繳費成員</div>
+                    <div className="text-2xl font-bold text-warning">
+                      {payments.filter((p: PaymentResponse) => !p.isPaid).length}
+                    </div>
+                    <div className="text-sm text-muted-foreground">未繳費成員</div>
                   </CardContent>
                 </Card>
               </div>
@@ -613,9 +640,9 @@ export default function ClubDashboard() {
                   ) : (
                     <div className="space-y-3">
                       {payments.slice(0, 5).map((payment: PaymentResponse) => {
-                        const paymentTypeName = paymentTypes.find(t => t.value === payment.paymentType)?.displayName || payment.paymentTypeName || "未知";
-                        const formatDate = (dateString: string) => {
-                          if (!dateString) return "";
+                        const paymentTypeName = payment.paymentTypeDisplay || paymentTypes.find(t => t.value === payment.paymentType)?.displayName || "未知";
+                        const formatDate = (dateString: string | null) => {
+                          if (!dateString) return "尚無付款日期";
                           const date = new Date(dateString);
                           return `${date.getFullYear()}/${String(date.getMonth() + 1).padStart(2, '0')}/${String(date.getDate()).padStart(2, '0')}`;
                         };
@@ -623,7 +650,7 @@ export default function ClubDashboard() {
                           <div key={payment.id} className="flex items-center justify-between p-4 rounded-lg bg-secondary">
                             <div className="flex-1">
                               <div className="font-medium text-foreground">{payment.userName}</div>
-                              <div className="text-sm text-muted-foreground">{formatDate(payment.paymentDate)}</div>
+                              <div className="text-sm text-muted-foreground">{payment.paymentDate ? formatDate(payment.paymentDate) : "尚無付款日期"}</div>
                             </div>
                             <div className="flex items-center gap-4">
                               <Badge variant="secondary">
@@ -632,22 +659,10 @@ export default function ClubDashboard() {
                               <div className="text-right min-w-[80px]">
                                 <div className="font-semibold">${payment.amount.toLocaleString()}</div>
                               </div>
-                              {payment.status === 1 && (
-                                <div className="flex gap-2">
-                                  <Button size="sm" variant="outline" className="gap-1">
-                                    <CheckCircle className="h-3 w-3" />
-                                    確認
-                                  </Button>
-                                  <Button size="sm" variant="ghost" className="gap-1 text-destructive">
-                                    <XCircle className="h-3 w-3" />
-                                    拒絕
-                                  </Button>
-                                </div>
-                              )}
-                              {payment.status === 2 && (
-                                <Badge variant="outline" className="text-primary border-primary">已確認</Badge>
-                              )}
-                              {payment.status === 0 && (
+                              
+                              {payment.isPaid ? (
+                                <Badge variant="outline" className="text-green-600 border-green-600 bg-green-50">已繳費</Badge>
+                              ) : (
                                 <Badge variant="destructive">未繳費</Badge>
                               )}
                             </div>

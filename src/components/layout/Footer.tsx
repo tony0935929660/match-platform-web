@@ -29,7 +29,7 @@ export function Footer() {
               </li>
               <li>
                 <Link to="/club" className="text-muted-foreground hover:text-foreground transition-colors">
-                  球團管理
+                  我的球團
                 </Link>
               </li>
             </ul>
