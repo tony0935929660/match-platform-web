@@ -49,7 +49,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { getMatches, MatchResponse, getMatch } from "@/services/matchApi";
 import { getGroups } from "@/services/groupApi";
-import { createScoreRecord, ScoreRecordRequest } from "@/services/scoreApi";
+import { createScoreRecord, ScoreRecordRequest, getScoreRecords, deleteScoreRecord, ScoreRecordResponse } from "@/services/scoreApi";
 
 // Mapping for sport ID to SportBadge type
 const sportValueToType: Record<number, SportType> = {
@@ -152,6 +152,24 @@ export default function ClubScores() {
     })
     .sort((a, b) => new Date(b.dateTime).getTime() - new Date(a.dateTime).getTime());
   
+  // Fetch scores when activity is selected
+  const { data: scoreRecords, isLoading: isLoadingScores, refetch: refetchScores } = useQuery({
+    queryKey: ['scores', selectedActivity?.id],
+    queryFn: () => getScoreRecords(token!, selectedActivity!.id),
+    enabled: !!token && !!selectedActivity,
+  });
+
+  const deleteScoreMutation = useMutation({
+    mutationFn: (id: number) => deleteScoreRecord(token!, id),
+    onSuccess: () => {
+      toast({ title: "刪除成功" });
+      refetchScores();
+    },
+    onError: () => {
+      toast({ title: "刪除失敗", variant: "destructive" });
+    }
+  });
+
   // Need to fetch full match details when selecting for adding scores to get participants
   const fetchActivityDetails = async (activity: MatchResponse) => {
     try {
@@ -161,8 +179,8 @@ export default function ClubScores() {
       const participants = detailedMatch.participants || [];
       // Normalize participant data to a simple list of names for the UI to use
       setActivityParticipants(participants.map(p => ({
-        name: p.user?.name || p.user?.lineName || "Unknown",
-        id: p.userId
+        name: p.user?.name || p.user?.lineName || p.name || p.lineName || (typeof p === 'string' ? p : "Unknown"),
+        id: p.userId || p.id || (typeof p === 'string' ? p : Math.random().toString())
       })));
     } catch (e) {
       console.error("Failed to fetch match details", e);
@@ -214,6 +232,7 @@ export default function ClubScores() {
       setAddingToActivity(null);
       setScoreEntries([{ id: "1", matchType: "1v1", customTeamSize: 1, teamA: [], teamB: [], scoreA: "", scoreB: "" }]);
       queryClient.invalidateQueries({ queryKey: ['matches', groupId] });
+      queryClient.invalidateQueries({ queryKey: ['scores', data.matchId] });
     },
     onError: (error: Error) => {
       toast({
@@ -538,11 +557,41 @@ export default function ClubScores() {
                     </Button>
                   </div>
 
-                  <div className="space-y-3">
-                     <div className="text-center py-8 text-muted-foreground">
-                        <Trophy className="h-12 w-12 mx-auto mb-3 opacity-30" />
-                        <p>紀錄功能開發中</p>
+                  <div className="space-y-3 max-h-[400px] overflow-y-auto pr-1">
+                    {isLoadingScores ? (
+                      <div className="flex justify-center py-8">
+                        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
                       </div>
+                    ) : scoreRecords && scoreRecords.length > 0 ? (
+                      scoreRecords.map((record) => (
+                        <div key={record.id} className="p-3 rounded-lg border bg-card flex justify-between items-center group">
+                          <div className="flex-1 grid grid-cols-[1fr,auto,1fr] gap-4 items-center">
+                            <div className="text-right font-medium text-sm truncate" title={record.teamAName}>
+                              {record.teamAName}
+                            </div>
+                            <div className="dark:bg-secondary/50 bg-secondary px-3 py-1 rounded text-lg font-bold whitespace-nowrap">
+                              {record.teamAScore} : {record.teamBScore}
+                            </div>
+                            <div className="text-left font-medium text-sm truncate" title={record.teamBName}>
+                               {record.teamBName}
+                            </div>
+                          </div>
+                          <Button
+                             variant="ghost" 
+                             size="icon" 
+                             className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity ml-2 text-muted-foreground hover:text-destructive"
+                             onClick={() => deleteScoreMutation.mutate(record.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-center py-8 text-muted-foreground">
+                        <Trophy className="h-12 w-12 mx-auto mb-3 opacity-30" />
+                        <p>尚無比賽紀錄</p>
+                      </div>
+                    )}
                   </div>
 
                   <div className="pt-4 border-t">
@@ -588,10 +637,7 @@ export default function ClubScores() {
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <h4 className="font-semibold text-foreground">比賽紀錄</h4>
-                    <Button variant="outline" size="sm" onClick={handleAddScoreRow} className="gap-2">
-                      <Plus className="h-4 w-4" />
-                      新增一場
-                    </Button>
+                    {/* Add button moved to bottom */}
                   </div>
 
                   <div className="space-y-6">
@@ -749,6 +795,13 @@ export default function ClubScores() {
                         </div>
                       );
                     })}
+                  </div>
+                  
+                  <div className="flex justify-end">
+                    <Button variant="outline" size="sm" onClick={handleAddScoreRow} className="gap-2">
+                      <Plus className="h-4 w-4" />
+                      新增一場
+                    </Button>
                   </div>
                 </div>
 

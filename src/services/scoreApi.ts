@@ -50,11 +50,50 @@ export async function createScoreRecord(token: string, data: ScoreRecordRequest)
 }
 
 /**
- * 取得活動的比賽紀錄 (如果 API 有提供，目前假設 GET /api/ScoreRecord?matchId=...)
- * 暫時保留，若之後有需要查詢特定活動的比分
+ * 取得比賽紀錄列表
  */
-/*
-export async function getScoreRecords(token: string, matchId: number): Promise<ScoreRecordResponse[]> {
-  // Implementation depends on backend API availability
+export async function getScoreRecords(token: string, matchId?: number): Promise<ScoreRecordResponse[]> {
+  const url = new URL(`${API_BASE_URL}/api/ScoreRecord`);
+  if (matchId) {
+    url.searchParams.append("matchId", matchId.toString());
+  }
+
+  const response = await fetch(url.toString(), {
+    method: "GET",
+    headers: {
+      "Authorization": `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error("取得比賽紀錄失敗");
+  }
+
+  const result = await response.json();
+  // Assume backend returns array directly or inside data
+  if (Array.isArray(result)) {
+      return result;
+  }
+  if (result.success !== undefined && result.data) {
+    return result.data as ScoreRecordResponse[];
+  }
+  return [];
 }
-*/
+
+/**
+ * 刪除比賽紀錄
+ */
+export async function deleteScoreRecord(token: string, id: number): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/api/ScoreRecord/${id}`, {
+    method: "DELETE",
+    headers: {
+      "Authorization": `Bearer ${token}`,
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error("刪除比賽紀錄失敗");
+  }
+}
+
