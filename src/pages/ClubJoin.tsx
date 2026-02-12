@@ -49,6 +49,14 @@ export default function ClubJoin() {
           <h1 className="text-2xl font-bold">請先登入</h1>
           <p className="text-muted-foreground">您需要登入才能加入球團</p>
           <Button onClick={() => login(window.location.pathname)}>前往登入</Button>
+          
+          {/* Debug info - only show in dev or if explicitly enabled */}
+             <div className="mt-8 p-4 bg-muted rounded text-xs text-muted-foreground break-all max-w-full">
+                <p>Debug Info:</p>
+                <p>Path: {window.location.pathname}</p>
+                <p>Code: {code}</p>
+                <p>Auth: {isAuthenticated ? "Yes" : "No"}</p>
+             </div>
         </div>
       </MainLayout>
     );
@@ -67,6 +75,12 @@ export default function ClubJoin() {
           <>
             <h1 className="text-2xl font-bold text-destructive">加入失敗</h1>
             <p className="text-muted-foreground">{joinMutation.error.message}</p>
+             <div className="mt-4 p-4 bg-muted rounded text-xs text-muted-foreground break-all max-w-full">
+                <p>Debug Info:</p>
+                <p>Path: {window.location.pathname}</p>
+                <p>Code: {code}</p>
+                <p>Error: {JSON.stringify(joinMutation.error)}</p>
+             </div>
             <Link to="/">
               <Button variant="outline">回首頁</Button>
             </Link>

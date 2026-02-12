@@ -34,12 +34,27 @@ import {
   MoreVertical,
   CheckCircle,
   XCircle,
-  AlertCircle
+  AlertCircle,
+  ArrowRight
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import { getUserProfile, updateUserProfile, UserProfile, UpdateUserRequest } from "@/services/userApi";
+import { getUserProfile, updateUserProfile, UserProfile, UpdateUserRequest, getUserMatches } from "@/services/userApi";
+import { MatchResponse } from "@/services/matchApi";
+import { useQuery } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
+import { format, subMonths } from "date-fns";
+import { zhTW } from "date-fns/locale";
+
+// Mapping for sport ID to SportBadge type
+const sportValueToType: Record<number, SportType> = {
+  1: "badminton",
+  2: "tennis",
+  3: "basketball",
+  4: "volleyball",
+  5: "table-tennis",
+  6: "soccer",
+};
 
 const mockPaymentHistory = [
   { id: "1", date: "2024/12/04", activity: "週三羽球交流賽", amount: 150, type: "single", status: "paid" },
@@ -48,14 +63,7 @@ const mockPaymentHistory = [
   { id: "4", date: "2024/11/20", activity: "籃球3v3鬥牛", amount: 100, type: "single", status: "paid" },
 ];
 
-const mockActivityTrend = [
-  { month: "7月", count: 4 },
-  { month: "8月", count: 6 },
-  { month: "9月", count: 5 },
-  { month: "10月", count: 8 },
-  { month: "11月", count: 7 },
-  { month: "12月", count: 6 },
-];
+
 
 // const mockSkills = [
 //   { sport: "badminton" as SportType, level: 5, confidence: "high" as const, trend: "up" as const },
@@ -63,83 +71,10 @@ const mockActivityTrend = [
 //   { sport: "basketball" as SportType, level: 4, confidence: "high" as const, trend: "up" as const },
 // ];
 
-const myCreatedActivities = [
-  {
-    id: "1",
-    title: "週三羽球交流賽",
-    sport: "badminton" as SportType,
-    date: "12/11 (三)",
-    time: "19:00-21:00",
-    location: "台北市大安運動中心",
-    currentSlots: 6,
-    maxSlots: 8,
-    casualSlots: 2,
-    isCasualOpen: true,
-    status: "upcoming" as const,
-  },
-  {
-    id: "2",
-    title: "週六羽球雙打",
-    sport: "badminton" as SportType,
-    date: "12/14 (六)",
-    time: "15:00-18:00",
-    location: "台北市中山運動中心",
-    currentSlots: 4,
-    maxSlots: 4,
-    casualSlots: 0,
-    isCasualOpen: false,
-    status: "upcoming" as const,
-  },
-];
-
-const myJoinedActivities = [
-  {
-    id: "3",
-    title: "籃球3v3鬥牛",
-    sport: "basketball" as SportType,
-    date: "12/12 (四)",
-    time: "18:30-20:30",
-    location: "台北市信義運動中心",
-    hostName: "陳志強",
-    status: "confirmed" as const,
-  },
-  {
-    id: "4",
-    title: "排球練習團",
-    sport: "volleyball" as SportType,
-    date: "12/15 (日)",
-    time: "14:00-17:00",
-    location: "台中市北區體育館",
-    hostName: "林美玲",
-    status: "waitlist" as const,
-    waitlistPosition: 2,
-  },
-];
-
-const myHistoryActivities = [
-  {
-    id: "5",
-    title: "週三羽球交流賽",
-    sport: "badminton" as SportType,
-    date: "12/04 (三)",
-    time: "19:00-21:00",
-    location: "台北市大安運動中心",
-    hostName: "王小明",
-    attended: true,
-    rated: false,
-  },
-  {
-    id: "6",
-    title: "網球友誼賽",
-    sport: "tennis" as SportType,
-    date: "12/01 (日)",
-    time: "09:00-12:00",
-    location: "新北市板橋網球場",
-    hostName: "李大華",
-    attended: true,
-    rated: true,
-  },
-];
+// Remove hardcoded mock activities
+const myCreatedActivities = [];
+const myJoinedActivities = [];
+const myHistoryActivities = [];
 
 export default function Profile() {
   const { token, user: authUser, setUser: setAuthUser } = useAuth();
@@ -155,6 +90,30 @@ export default function Profile() {
     email: "",
   });
   const [isSaving, setIsSaving] = useState(false);
+  const PREVIEW_LIMIT = 5;
+
+  // Load user matches
+  const { data: userMatchesData, isLoading: isLoadingMatches } = useQuery({
+    queryKey: ['userMatches'],
+    queryFn: () => getUserMatches(token!, { pageSize: 100 }),
+    enabled: !!token
+  });
+
+  const allMatches = userMatchesData?.data || [];
+
+  // Filter matches
+  const now = new Date();
+
+  // Created: Hosted by user (role === 1)
+  // Exclude history
+  const hostedMatches = allMatches.filter(m => m.userRole === 1 && new Date(m.endDateTime) >= now);
+
+  // Joined: Participating (role === 2) or Alternative (role === 3)
+  // Exclude history
+  const joinedMatches = allMatches.filter(m => (m.userRole === 2 || m.userRole === 3) && new Date(m.endDateTime) >= now);
+
+  // History: Both hosted and joined in the past
+  const historyMatches = allMatches.filter(m => new Date(m.endDateTime) < now);
 
   // 載入使用者資料
   useEffect(() => {
@@ -250,21 +209,21 @@ export default function Profile() {
     year: "numeric",
     month: "2-digit",
   }).replace(/\//g, "/");
+ 
+  // Calculate activity trend (Last 6 months)
+  const activityTrend = Array.from({ length: 6 }, (_, i) => {
+    const d = subMonths(now, 5 - i);
+    const monthKey = format(d, "M月", { locale: zhTW });
+    // Filter history matches that happened in this month
+    const count = historyMatches.filter(m => {
+        const matchDate = new Date(m.dateTime);
+        return matchDate.getMonth() === d.getMonth() && matchDate.getFullYear() === d.getFullYear();
+    }).length;
 
-  // Mock data for display (這些資料之後可以從其他 API 取得)
-  const mockStats = {
-    totalActivities: 48,
-    hostedActivities: 12,
-    thisMonth: 6,
-  };
+    return { month: monthKey, count };
+  });
 
-  const mockCredit = {
-    score: 4.8,
-    confidence: "high" as const,
-    attendanceRate: 95,
-    cancelRate: 3,
-    absenceCount: 1,
-  };
+  const maxTrendCount = Math.max(...activityTrend.map(i => i.count), 1);
 
   return (
     <MainLayout>
@@ -302,21 +261,27 @@ export default function Profile() {
               <Calendar className="h-5 w-5" />
               <span className="text-sm font-medium">總活動數</span>
             </div>
-            <div className="text-3xl font-bold text-foreground">{mockStats.totalActivities}</div>
+            <div className="text-3xl font-bold text-foreground">{allMatches.length}</div>
           </div>
           <div className="p-4 md:p-6 rounded-xl bg-secondary">
             <div className="flex items-center gap-2 text-muted-foreground mb-2">
               <TrendingUp className="h-5 w-5" />
               <span className="text-sm font-medium">已開團</span>
             </div>
-            <div className="text-3xl font-bold text-foreground">{mockStats.hostedActivities}</div>
+            {/* Count hosted matches from all matches including history */}
+            <div className="text-3xl font-bold text-foreground">{allMatches.filter(m => m.userRole === 1).length}</div>
           </div>
           <div className="p-4 md:p-6 rounded-xl bg-secondary">
             <div className="flex items-center gap-2 text-muted-foreground mb-2">
               <Clock className="h-5 w-5" />
               <span className="text-sm font-medium">本月活動</span>
             </div>
-            <div className="text-3xl font-bold text-foreground">{mockStats.thisMonth}</div>
+            <div className="text-3xl font-bold text-foreground">
+              {allMatches.filter(m => {
+                const d = new Date(m.dateTime);
+                return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+              }).length}
+            </div>
           </div>
         </div>
 
@@ -334,24 +299,32 @@ export default function Profile() {
 
         {/* My Activities Tabs */}
         <Tabs defaultValue="created" className="space-y-6 mb-8">
-          <TabsList className="grid w-full grid-cols-3 lg:w-auto lg:inline-grid">
-            <TabsTrigger value="created" className="gap-2">
-              我開的團
-              <Badge variant="secondary" className="ml-1">{myCreatedActivities.length}</Badge>
-            </TabsTrigger>
-            <TabsTrigger value="joined" className="gap-2">
-              我報名的
-              <Badge variant="secondary" className="ml-1">{myJoinedActivities.length}</Badge>
-            </TabsTrigger>
-            <TabsTrigger value="history" className="gap-2">
-              歷史活動
-              <Badge variant="secondary" className="ml-1">{myHistoryActivities.length}</Badge>
-            </TabsTrigger>
-          </TabsList>
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+            <TabsList className="grid w-full grid-cols-3 lg:w-auto lg:inline-grid">
+              <TabsTrigger value="created" className="gap-2">
+                我開的團
+                <Badge variant="secondary" className="ml-1">{hostedMatches.length}</Badge>
+              </TabsTrigger>
+              <TabsTrigger value="joined" className="gap-2">
+                我報名的
+                <Badge variant="secondary" className="ml-1">{joinedMatches.length}</Badge>
+              </TabsTrigger>
+              <TabsTrigger value="history" className="gap-2">
+                歷史活動
+                <Badge variant="secondary" className="ml-1">{historyMatches.length}</Badge>
+              </TabsTrigger>
+            </TabsList>
+            
+            <Link to="/profile/activities" className="w-full md:w-auto">
+              <Button variant="ghost" size="sm" className="w-full md:w-auto gap-1">
+                查看全部 <ArrowRight className="h-4 w-4" />
+              </Button>
+            </Link>
+          </div>
 
           {/* Created Activities */}
           <TabsContent value="created" className="space-y-4">
-            {myCreatedActivities.length === 0 ? (
+            {hostedMatches.length === 0 ? (
               <div className="text-center py-16">
                 <div className="text-6xl mb-4">📋</div>
                 <h3 className="text-lg font-semibold text-foreground mb-2">還沒有開過團</h3>
@@ -361,32 +334,33 @@ export default function Profile() {
                 </Link>
               </div>
             ) : (
-              myCreatedActivities.map((activity) => (
+              <>
+              {hostedMatches.slice(0, PREVIEW_LIMIT).map((activity) => (
                 <div key={activity.id} className="p-4 md:p-6 rounded-xl border bg-card shadow-card">
                   <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-2">
-                        <SportBadge sport={activity.sport} size="sm" />
-                        {activity.isCasualOpen && (
+                        <SportBadge sport={sportValueToType[activity.sport] || "badminton"} size="sm" />
+                        {activity.isGuestPlayerAllowed && (
                           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary">
                             <span className="w-1.5 h-1.5 rounded-full bg-primary" />
                             開放臨打
                           </span>
                         )}
                       </div>
-                      <h3 className="font-semibold text-foreground text-lg mb-2">{activity.title}</h3>
+                      <h3 className="font-semibold text-foreground text-lg mb-2">{activity.name}</h3>
                       <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
                         <div className="flex items-center gap-1.5">
                           <Calendar className="h-4 w-4" />
-                          {activity.date}
+                          {format(new Date(activity.dateTime), "MM/dd (eee)", { locale: zhTW })}
                         </div>
                         <div className="flex items-center gap-1.5">
                           <Clock className="h-4 w-4" />
-                          {activity.time}
+                          {format(new Date(activity.dateTime), "HH:mm")} - {format(new Date(activity.endDateTime), "HH:mm")}
                         </div>
                         <div className="flex items-center gap-1.5">
                           <MapPin className="h-4 w-4" />
-                          {activity.location}
+                          {activity.address}
                         </div>
                       </div>
                     </div>
@@ -396,12 +370,12 @@ export default function Profile() {
                         <div className="flex items-center gap-1.5 justify-end">
                           <Users className="h-4 w-4 text-muted-foreground" />
                           <span className="font-semibold text-foreground">
-                            {activity.currentSlots}/{activity.maxSlots}
+                            {activity.participants?.length || 0}/{activity.requiredPeople || "?"}
                           </span>
                         </div>
                         <div className="text-xs text-muted-foreground">
-                          {activity.maxSlots - activity.currentSlots > 0 
-                            ? `剩餘 ${activity.maxSlots - activity.currentSlots} 位`
+                          {(activity.requiredPeople - (activity.participants?.length || 0)) > 0 
+                            ? `剩餘 ${activity.requiredPeople - (activity.participants?.length || 0)} 位`
                             : "已額滿"
                           }
                         </div>
@@ -424,13 +398,16 @@ export default function Profile() {
                     </div>
                   </div>
                 </div>
-              ))
+              ))}
+              
+
+              </>
             )}
           </TabsContent>
 
           {/* Joined Activities */}
           <TabsContent value="joined" className="space-y-4">
-            {myJoinedActivities.length === 0 ? (
+            {joinedMatches.length === 0 ? (
               <div className="text-center py-16">
                 <div className="text-6xl mb-4">🔍</div>
                 <h3 className="text-lg font-semibold text-foreground mb-2">還沒有報名活動</h3>
@@ -440,39 +417,39 @@ export default function Profile() {
                 </Link>
               </div>
             ) : (
-              myJoinedActivities.map((activity) => (
+              <>
+              {joinedMatches.slice(0, PREVIEW_LIMIT).map((activity) => (
                 <div key={activity.id} className="p-4 md:p-6 rounded-xl border bg-card shadow-card">
                   <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-2">
-                        <SportBadge sport={activity.sport} size="sm" />
-                        {activity.status === "confirmed" && (
+                        <SportBadge sport={sportValueToType[activity.sport] || "badminton"} size="sm" />
+                        {activity.userRole === 3 ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-warning/10 text-warning">
+                            <AlertCircle className="h-3 w-3" />
+                            候補
+                          </span>
+                        ) : (
                           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary">
                             <CheckCircle className="h-3 w-3" />
                             已確認
                           </span>
                         )}
-                        {activity.status === "waitlist" && (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-warning/10 text-warning">
-                            <AlertCircle className="h-3 w-3" />
-                            候補 #{activity.waitlistPosition}
-                          </span>
-                        )}
                       </div>
-                      <h3 className="font-semibold text-foreground text-lg mb-1">{activity.title}</h3>
-                      <div className="text-sm text-muted-foreground mb-2">主揪：{activity.hostName}</div>
+                      <h3 className="font-semibold text-foreground text-lg mb-1">{activity.name}</h3>
+                      <div className="text-sm text-muted-foreground mb-2">主揪：{activity.host || activity.groupName || "未知"}</div>
                       <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
                         <div className="flex items-center gap-1.5">
                           <Calendar className="h-4 w-4" />
-                          {activity.date}
+                          {format(new Date(activity.dateTime), "MM/dd (eee)", { locale: zhTW })}
                         </div>
                         <div className="flex items-center gap-1.5">
                           <Clock className="h-4 w-4" />
-                          {activity.time}
+                          {format(new Date(activity.dateTime), "HH:mm")} - {format(new Date(activity.endDateTime), "HH:mm")}
                         </div>
                         <div className="flex items-center gap-1.5">
                           <MapPin className="h-4 w-4" />
-                          {activity.location}
+                          {activity.address}
                         </div>
                       </div>
                     </div>
@@ -485,84 +462,78 @@ export default function Profile() {
                     </div>
                   </div>
                 </div>
-              ))
+              ))}
+              
+
+              </>
             )}
           </TabsContent>
 
           {/* History Activities */}
           <TabsContent value="history" className="space-y-4">
-            {myHistoryActivities.length === 0 ? (
+            {historyMatches.length === 0 ? (
               <div className="text-center py-16">
                 <div className="text-6xl mb-4">📅</div>
                 <h3 className="text-lg font-semibold text-foreground mb-2">還沒有歷史活動</h3>
                 <p className="text-muted-foreground">參加活動後會顯示在這裡</p>
               </div>
             ) : (
-              myHistoryActivities.map((activity) => (
+              <>
+              {historyMatches.slice(0, PREVIEW_LIMIT).map((activity) => (
                 <div key={activity.id} className="p-4 md:p-6 rounded-xl border bg-card shadow-card">
                   <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-2">
-                        <SportBadge sport={activity.sport} size="sm" />
-                        {activity.attended ? (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary">
-                            <CheckCircle className="h-3 w-3" />
-                            已出席
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-destructive/10 text-destructive">
-                            <XCircle className="h-3 w-3" />
-                            未出席
-                          </span>
-                        )}
+                        <SportBadge sport={sportValueToType[activity.sport] || "badminton"} size="sm" />
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-secondary text-muted-foreground">
+                            已結束
+                        </span>
                       </div>
-                      <h3 className="font-semibold text-foreground text-lg mb-1">{activity.title}</h3>
-                      <div className="text-sm text-muted-foreground mb-2">主揪：{activity.hostName}</div>
+                      <h3 className="font-semibold text-foreground text-lg mb-1">{activity.name}</h3>
+                      <div className="text-sm text-muted-foreground mb-2">主揪：{activity.host || activity.groupName || "未知"}</div>
                       <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
                         <div className="flex items-center gap-1.5">
                           <Calendar className="h-4 w-4" />
-                          {activity.date}
+                          {format(new Date(activity.dateTime), "yyyy/MM/dd", { locale: zhTW })}
                         </div>
                         <div className="flex items-center gap-1.5">
                           <Clock className="h-4 w-4" />
-                          {activity.time}
+                          {format(new Date(activity.dateTime), "HH:mm")} - {format(new Date(activity.endDateTime), "HH:mm")}
                         </div>
                         <div className="flex items-center gap-1.5">
                           <MapPin className="h-4 w-4" />
-                          {activity.location}
+                          {activity.address}
                         </div>
                       </div>
                     </div>
                     
                     <div className="flex items-center gap-2">
-                      {!activity.rated && activity.attended && (
-                        <Button size="sm">評價活動</Button>
-                      )}
-                      {activity.rated && (
-                        <span className="text-sm text-muted-foreground">已評價</span>
-                      )}
+                        <Button size="sm" variant="outline">查看詳情</Button>
                     </div>
                   </div>
                 </div>
-              ))
+              ))}
+
+
+              </>
             )}
           </TabsContent>
         </Tabs>
 
         {/* Payment & Trend Tabs */}
-        <Tabs defaultValue="payments" className="space-y-6">
+        <Tabs defaultValue="trend" className="space-y-6">
           <TabsList>
-            <TabsTrigger value="payments" className="gap-2">
+            {/* <TabsTrigger value="payments" className="gap-2">
               <DollarSign className="h-4 w-4" />
               繳費紀錄
-            </TabsTrigger>
+            </TabsTrigger> */}
             <TabsTrigger value="trend" className="gap-2">
               <TrendingUp className="h-4 w-4" />
               參與趨勢
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="payments">
+          {/* <TabsContent value="payments">
             <div className="rounded-xl border bg-card overflow-hidden">
               <div className="p-4 border-b bg-secondary/30">
                 <h3 className="font-semibold text-foreground">繳費紀錄</h3>
@@ -591,15 +562,14 @@ export default function Profile() {
                 ))}
               </div>
             </div>
-          </TabsContent>
+          </TabsContent> */}
 
           <TabsContent value="trend">
             <div className="rounded-xl border bg-card p-6">
               <h3 className="font-semibold text-foreground mb-6">近 6 個月活動參與</h3>
               <div className="flex items-end justify-between gap-2 h-48">
-                {mockActivityTrend.map((item, index) => {
-                  const maxCount = Math.max(...mockActivityTrend.map(i => i.count));
-                  const height = (item.count / maxCount) * 100;
+                {activityTrend.map((item) => {
+                  const height = (item.count / maxTrendCount) * 100;
                   return (
                     <div key={item.month} className="flex-1 flex flex-col items-center gap-2">
                       <div 
@@ -608,7 +578,7 @@ export default function Profile() {
                       >
                         <div 
                           className="absolute bottom-0 left-0 right-0 bg-primary rounded-t-md transition-all duration-300"
-                          style={{ height: `${(item.count / maxCount) * 100}%` }}
+                          style={{ height: `${(item.count / maxTrendCount) * 100}%` }}
                         />
                         <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-foreground text-background text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity">
                           {item.count} 場

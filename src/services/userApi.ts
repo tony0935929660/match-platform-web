@@ -1,3 +1,5 @@
+import { MatchResponse } from "./matchApi";
+
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 export interface UserProfile {
@@ -81,3 +83,41 @@ export async function updateUserProfile(token: string, data: UpdateUserRequest):
   }
   return result as UserProfile;
 }
+
+/**
+ * 取得使用者的活動列表
+ */
+export async function getUserMatches(token: string, searchParams?: any): Promise<{ data: MatchResponse[], pagination: any }> {
+  try {
+    const url = new URL(`${API_BASE_URL}/api/users/matches`);
+    if (searchParams) {
+      Object.keys(searchParams).forEach((key) => {
+        const value = searchParams[key];
+        if (value !== undefined && value !== null) {
+          url.searchParams.append(key, value.toString());
+        }
+      });
+    }
+
+    const response = await fetch(url.toString(), {
+      method: "GET",
+      headers: {
+        "Authorization": `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      console.error("Fetch user matches failed:", response.status);
+      return { data: [], pagination: {} };
+    }
+
+    const result = await response.json();
+    console.log("Get user matches response:", result);
+    return result; 
+  } catch (error) {
+    console.error("Get user matches error:", error);
+    return { data: [], pagination: {} };
+  }
+}
+
