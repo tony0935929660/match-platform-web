@@ -190,8 +190,8 @@ export default function ActivityDetail() {
     userRole: match.userRole || 0,
   };
 
-  const isFull = activity.currentSlots >= activity.maxSlots;
-  const slotsRemaining = activity.maxSlots - activity.currentSlots;
+  const isFull = activity.maxSlots !== null && activity.currentSlots >= activity.maxSlots;
+  const slotsRemaining = activity.maxSlots === null ? null : activity.maxSlots - activity.currentSlots;
   const isJoined = activity.userRole === 2; // 2: Participant
 
   const handleStartRegistration = () => {
@@ -330,7 +330,7 @@ export default function ActivityDetail() {
             <div className="p-6 rounded-xl border bg-card">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="font-semibold text-foreground">參與者</h2>
-                <span className="text-sm text-muted-foreground">{activity.currentSlots}/{activity.maxSlots} 人</span>
+                <span className="text-sm text-muted-foreground">{activity.currentSlots}/{activity.maxSlots === null ? "∞" : activity.maxSlots} 人</span>
               </div>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                 {activity.participants.map((participant) => (
@@ -397,8 +397,8 @@ export default function ActivityDetail() {
                   <span className="text-sm text-muted-foreground">名額</span>
                 </div>
                 <div className={`font-semibold ${isFull ? "text-destructive" : "text-foreground"}`}>
-                  {activity.currentSlots}/{activity.maxSlots}
-                  {!isFull && <span className="text-muted-foreground font-normal"> (剩餘 {slotsRemaining})</span>}
+                  {activity.currentSlots}/{activity.maxSlots === null ? "∞" : activity.maxSlots}
+                  {!isFull && <span className="text-muted-foreground font-normal"> (剩餘 {slotsRemaining === null ? "無上限" : slotsRemaining})</span>}
                 </div>
               </div>
 
