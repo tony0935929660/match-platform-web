@@ -79,7 +79,9 @@ export default function ClubJoin() {
                 <p>Debug Info:</p>
                 <p>Path: {window.location.pathname}</p>
                 <p>Code: {code}</p>
-                <p>Error: {JSON.stringify(joinMutation.error)}</p>
+                <p>Error Name: {joinMutation.error?.name}</p>
+                <p>Error Message: {joinMutation.error?.message}</p>
+                <p>Full Error: {String(joinMutation.error)}</p>
              </div>
             <Link to="/">
               <Button variant="outline">回首頁</Button>
