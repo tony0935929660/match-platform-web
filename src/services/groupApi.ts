@@ -366,17 +366,19 @@ export async function joinGroupByLink(token: string, inviteCode: string): Promis
     const errorText = await response.text();
     console.error("Join group error:", response.status, errorText);
     
-    let errorMessage = "加入球團失敗";
+    let errorMessage = `加入球團失敗 (${response.status})`;
     try {
         const errorJson = JSON.parse(errorText);
         // 如果有 message 並且是明確的業務錯誤訊息，直接使用
         if (errorJson.message) {
             errorMessage = errorJson.message;
-        } else {
-            errorMessage = errorJson.title || errorMessage;
+        } else if (errorJson.title) {
+            errorMessage = errorJson.title;
+        } else if (errorJson.detail) {
+             errorMessage = errorJson.detail;
         }
     } catch {
-        if (errorText) errorMessage = errorText;
+        if (errorText && errorText.length < 200) errorMessage = errorText;
     }
     
     // 如果是 409 Conflict (e.g. 已加入)，通常 message 已經很清楚，不需要加上 status code
