@@ -28,7 +28,15 @@ import {
   MoreVertical,
   Filter
 } from "lucide-react";
-import { Link } from "react-router-dom";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Link, useSearchParams } from "react-router-dom";
+
 
 const mockClubActivities = [
   {
@@ -109,40 +117,69 @@ const getSportType = (id: number): SportType => {
   }
 };
 
+
 export default function ClubActivities() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [searchQuery, setSearchQuery] = useState("");
   const { token } = useAuth();
   
+  const selectedClubId = searchParams.get("groupId") || "all";
+
   const { data: groups } = useQuery({
     queryKey: ['groups'],
     queryFn: () => getGroups(token!),
     enabled: !!token,
   });
-  const currentClub = groups?.[0];
 
   const { data: matchesData } = useQuery({
-    queryKey: ['clubMatches', currentClub?.id],
-    queryFn: () => getMatches(token!, { groupId: currentClub!.id, pageNumber: 1, pageSize: 10 }),
-    enabled: !!token && !!currentClub
+    queryKey: ['clubMatches', selectedClubId],
+    queryFn: () => getMatches(token!, { 
+       groupId: selectedClubId === "all" ? undefined : Number(selectedClubId),
+       pageNumber: 0, 
+       pageSize: 50  // Fetch more
+    }),
+    enabled: !!token
+  });
+  
+  // Filter matches locally if backend doesn't support groupId filter for "all" or specific
+  // Assuming Backend supports groupId. If selectedClubId is "all", we might get all public matches or user's group matches depending on API.
+  // Ideally API should support getting matches for *my* groups. 
+  // If API getMatches without groupId returns all public matches, we might need to filter by groups user is in.
+  // But for now let's convert group IDs to a Set for checking.
+  const myGroupIds = new Set(groups?.map(g => g.id));
+  
+  const allMatches = matchesData?.content || [];
+  
+  // If "all" is selected, we only want to show matches from *my* clubs, not global public matches?
+  // Current requirement: "分不同球團" (Separate different clubs)
+  // Maybe user wants a dropdown to select club?
+
+  const displayedMatches = allMatches.filter(m => {
+      // If a specific club is selected, API likely handled it, but double check
+      if (selectedClubId !== "all" && m.groupId?.toString() !== selectedClubId) return false;
+      
+      // If "all" selected, show only matches from my groups
+      if (selectedClubId === "all" && m.groupId && !myGroupIds.has(m.groupId)) return false; 
+      
+      return true;
   });
 
-  const matches = matchesData?.content || [];
-  
   const now = new Date();
 
-  const filteredUpcoming = matches.filter(activity => {
+  const filteredUpcoming = displayedMatches.filter(activity => {
     const isUpcoming = new Date(activity.dateTime) > now;
     const matchesSearch = activity.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
                           activity.court.toLowerCase().includes(searchQuery.toLowerCase());
     return isUpcoming && matchesSearch;
   });
 
-  const filteredPast = matches.filter(activity => {
+  const filteredPast = displayedMatches.filter(activity => {
     const isPast = new Date(activity.dateTime) <= now;
     const matchesSearch = activity.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
                           activity.court.toLowerCase().includes(searchQuery.toLowerCase());
     return isPast && matchesSearch;
   });
+
 
   return (
     <MainLayout>
@@ -166,11 +203,58 @@ export default function ClubActivities() {
           </Link>
         </div>
 
+        {/* Filters */}
+        <div className="flex flex-col md:flex-row gap-4 mb-6">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input 
+              placeholder="搜尋活動名稱、地點..." 
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+          <div className="w-full md:w-64">
+            <Select 
+                value={selectedClubId} 
+                onValueChange={(val) => {
+                  setSearchParams(prev => {
+                    const newParams = new URLSearchParams(prev);
+                    if (val === "all") newParams.delete("groupId");
+                    else newParams.set("groupId", val);
+                    return newParams;
+                  });
+                }}
+            >
+                <SelectTrigger>
+                    <SelectValue placeholder="選擇球團" />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="all">所有球團</SelectItem>
+                    {groups?.map((group) => (
+                        <SelectItem key={group.id} value={group.id.toString()}>
+                            {group.name}
+                        </SelectItem>
+                    ))}
+                </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        {/* Statistics or Group Name Header if filtered */}
+        {selectedClubId !== "all" && (
+            <div className="mb-4">
+                <h2 className="text-xl font-semibold">
+                    {groups?.find(g => g.id.toString() === selectedClubId)?.name || "未知球團"} 的活動
+                </h2>
+            </div>
+        )}
+
         {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
           <Card>
             <CardContent className="p-4">
-              <div className="text-2xl font-bold text-foreground">{matchesData?.totalElements || matches.length}</div>
+              <div className="text-2xl font-bold text-foreground">{filteredUpcoming.length}</div>
               <div className="text-sm text-muted-foreground">即將舉行</div>
             </CardContent>
           </Card>
@@ -183,7 +267,7 @@ export default function ClubActivities() {
           <Card>
             <CardContent className="p-4">
               <div className="text-2xl font-bold text-foreground">
-                {matches.reduce((sum, a) => sum + (a.participants?.length || 0), 0)}
+                {displayedMatches.reduce((sum, a) => sum + (a.participants?.length || 0), 0)}
               </div>
               <div className="text-sm text-muted-foreground">總報名人數</div>
             </CardContent>
@@ -191,34 +275,17 @@ export default function ClubActivities() {
           <Card>
             <CardContent className="p-4">
               <div className="text-2xl font-bold text-primary">
-                {matches.filter(a => a.isGuestPlayerAllowed).length}
+                {displayedMatches.filter(a => a.isGuestPlayerAllowed).length}
               </div>
               <div className="text-sm text-muted-foreground">開放臨打</div>
             </CardContent>
           </Card>
         </div>
 
-        {/* Search & Filter */}
-        <div className="flex gap-4 mb-6">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="搜尋活動..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10"
-            />
-          </div>
-          <Button variant="outline" className="gap-2">
-            <Filter className="h-4 w-4" />
-            篩選
-          </Button>
-        </div>
-
         {/* Tabs */}
         <Tabs defaultValue="upcoming" className="space-y-6">
           <TabsList>
-            <TabsTrigger value="upcoming">即將舉行 ({matches.length})</TabsTrigger>
+            <TabsTrigger value="upcoming">即將舉行 ({filteredUpcoming.length})</TabsTrigger>
             <TabsTrigger value="past">歷史活動 ({filteredPast.length})</TabsTrigger>
           </TabsList>
 
@@ -251,6 +318,7 @@ function ActivityItem({ activity, isPast = false }: ActivityItemProps) {
         <div className="flex-1">
           <div className="flex items-center gap-2 mb-2">
             <SportBadge sport={getSportType(activity.sport)} size="sm" />
+            <Badge variant="outline">{activity.groupName || `球團 #${activity.groupId}`}</Badge>
             {activity.isGuestPlayerAllowed && (
               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary">
                 <span className="w-1.5 h-1.5 rounded-full bg-primary" />

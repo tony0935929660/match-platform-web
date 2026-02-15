@@ -151,10 +151,17 @@ export default function Index() {
         // Fetch more to handle past events filtering
         const matchesResponse = await getMatches(token || undefined, { pageSize: 20 });
         
+        const matched = matchesResponse.content || [];
+        // Filter out past activities
+        // Note: For testing purposes, if most data is in the past, you might want to remove this filter
+        // or check if backend returns correct future dates.
         const now = new Date();
-        const futureMatches = matchesResponse.content.filter(m => new Date(m.dateTime) > now);
-        // Take top 4
-        const displayMatches = futureMatches.slice(0, 4);
+        
+        // Filter for future matches only and sort by date (soonest first)
+        const displayMatches = matched
+            .filter(m => new Date(m.dateTime) > now)
+            .sort((a, b) => new Date(a.dateTime).getTime() - new Date(b.dateTime).getTime())
+            .slice(0, 4);
 
         const mappedMatches = displayMatches.map(m => {
           // Try to find sport name from sportsData
@@ -246,7 +253,7 @@ export default function Index() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
             {(hotActivities.length > 0 ? hotActivities : mockActivities).map((activity, index) => (
               <div key={activity.id} className="animate-fade-in" style={{ animationDelay: `${index * 0.1}s` }}>
-                <ActivityCard {...activity} />
+                  <ActivityCard {...activity} />
               </div>
             ))}
           </div>

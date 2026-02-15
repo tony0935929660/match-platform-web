@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Button } from "@/components/ui/button";
 import { SportBadge, SportType } from "@/components/ui/SportBadge";
@@ -90,13 +90,16 @@ const getSportType = (id: number): SportType => {
 
 export default function ActivityDetail() {
   const { id } = useParams();
-  const { token, isAuthenticated } = useAuth(); // isAuthenticated for share checks if needed
+  const navigate = useNavigate();
+  const { token, isAuthenticated, login } = useAuth(); // isAuthenticated for share checks if needed
   const queryClient = useQueryClient();
 
-  const { data: match, isLoading } = useQuery({
+  // If we are not authenticated, we pass undefined as token to getMatch.
+  // The API function should support optional token.
+  const { data: match, isLoading, error } = useQuery({
     queryKey: ['match', id],
-    queryFn: () => getMatch(token!, id!),
-    enabled: !!token && !!id,
+    queryFn: () => getMatch(token || undefined, id!),
+    enabled: !!id, // Removed !!token check so it runs even if not logged in
   });
 
   const [showRegistration, setShowRegistration] = useState(false);
@@ -148,6 +151,27 @@ export default function ActivityDetail() {
   }
 
   // Fallback or loading state handle
+  if (error) {
+    if (!isAuthenticated) {
+         return (
+             <MainLayout>
+               <div className="container flex flex-col items-center justify-center min-h-[60vh] gap-4">
+                 <h1 className="text-2xl font-bold">請先登入</h1>
+                 <p className="text-muted-foreground">您需要登入才能查看活動詳細資料</p>
+                 <Button onClick={() => navigate("/login?redirect=" + encodeURIComponent(window.location.pathname))}>前往登入</Button>
+               </div>
+             </MainLayout>
+           );
+    }
+    return (
+      <MainLayout>
+        <div className="container py-6 flex justify-center text-destructive">
+          載入失敗: {error.message}
+        </div>
+      </MainLayout>
+    );
+  }
+
   if (!match) {
     return (
       <MainLayout>
@@ -195,6 +219,12 @@ export default function ActivityDetail() {
   const isJoined = activity.userRole === 2; // 2: Participant
 
   const handleStartRegistration = () => {
+    if (!isAuthenticated) {
+        // Redirect to login page instead of auto-logging in via LINE
+        // Assuming /login is the path to Login.tsx which has the green button
+        navigate("/login?redirect=" + encodeURIComponent(window.location.pathname));
+        return;
+    }
     setShowRegistration(true);
     setRegistrationStep("confirm");
   };

@@ -99,7 +99,7 @@ export default function ClubActivityParticipants() {
     <MainLayout>
       <div className="container max-w-4xl py-6 md:py-10">
         <div className="mb-6">
-          <Link to="/club/activities">
+          <Link to={match.groupId ? `/club/activities?groupId=${match.groupId}` : "/club/activities"}>
             <Button variant="ghost" className="pl-0 gap-2 mb-4 hover:bg-transparent hover:text-primary">
               <ArrowLeft className="h-4 w-4" />
               返回活動列表

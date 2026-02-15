@@ -103,24 +103,29 @@ export default function Activities() {
         if (searchQuery) params.keyword = searchQuery;
 
         const data = await getMatches(token || undefined, params);
-        if (data && data.content) {
-            // Filter out past activities
-            const now = new Date();
-            const futureMatches = data.content.filter(m => new Date(m.dateTime) > now);
-            setMatches(futureMatches);
-            // Note: totalElements might be inaccurate if we filter on frontend, 
-            // but we can't easily fix paginated total count without backend support.
-            // For now, let's keep totalElements as is or adjust it? 
-            // Better to show what we have.
-            setTotalElements(futureMatches.length); 
-        } else {
-             // Fallback if data is array
-             const list = Array.isArray(data) ? data : [];
-             const now = new Date();
-             const futureMatches = list.filter(m => new Date(m.dateTime) > now);
-             setMatches(futureMatches);
-             setTotalElements(futureMatches.length);
+        
+        let allMatches: MatchResponse[] = [];
+        if (data && Array.isArray(data.content)) {
+            allMatches = data.content;
+        } else if (Array.isArray(data)) {
+            allMatches = data;
         }
+
+        const now = new Date();
+        
+        // Filter out past matches
+        const futureMatches = allMatches.filter(m => new Date(m.dateTime) > now);
+
+        // Sort by closest time to now (ascending date for future events)
+        futureMatches.sort((a, b) => {
+             return new Date(a.dateTime).getTime() - new Date(b.dateTime).getTime();
+        });
+
+        // Ensure we don't have duplicates or empty slots if backend pagination is weird
+        // (Optional: if the user scrolls or we implement infinite scroll later)
+        
+        setMatches(futureMatches);
+        setTotalElements(futureMatches.length);
 
       } catch (error) {
         console.error("Failed to fetch matches", error);
