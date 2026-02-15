@@ -254,17 +254,22 @@ export default function ClubDashboard() {
   const { data: upcomingActivitiesData } = useQuery({
     queryKey: ['upcomingMatches', currentClub?.id],
     queryFn: () => getMatches(token!, { 
-      groupId: currentClub!.id, 
-      pageSize: 10, // Fetch more to ensure we have enough upcoming after filtering
-      pageNumber: 1
+       groupId: currentClub!.id, 
+       pageSize: 10, 
+       pageNumber: 1
     }),
     enabled: !!token && !!currentClub,
   });
 
   const now = new Date();
+  
+  // Sort activities by closeness to now, filter out past activities
   const upcomingActivities = (upcomingActivitiesData?.content || [])
-    .filter(activity => new Date(activity.dateTime) > now)
-    .slice(0, 3); // Take only top 3 upcoming
+    .filter(a => new Date(a.dateTime) > now)
+    .sort((a, b) => {
+      return new Date(a.dateTime).getTime() - new Date(b.dateTime).getTime();
+    })
+    .slice(0, 3);
   
   const displayClub = currentClub ? {
     id: currentClub.id.toString(),
@@ -342,7 +347,7 @@ export default function ClubDashboard() {
 
         {/* Quick Actions */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-          <Link to={`/club/activities`}>
+          <Link to={`/club/activities?groupId=${displayClub.id}`}>
             <Card className="cursor-pointer hover:shadow-card-hover transition-all h-full">
               <CardContent className="p-4">
                 <div className="flex items-center justify-between mb-3">
@@ -410,7 +415,7 @@ export default function ClubDashboard() {
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle>即將舉行的活動</CardTitle>
-              <Link to="/club/activities">
+              <Link to={`/club/activities?groupId=${displayClub.id}`}>
                 <Button variant="outline" size="sm" className="gap-2">
                   查看全部
                   <ChevronRight className="h-4 w-4" />
@@ -419,6 +424,21 @@ export default function ClubDashboard() {
             </div>
           </CardHeader>
           <CardContent>
+            {upcomingActivities.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-8 text-center bg-secondary/30 rounded-lg border-2 border-dashed">
+                <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mb-3">
+                  <Calendar className="h-6 w-6 text-primary" />
+                </div>
+                <h3 className="font-semibold text-lg mb-1">還沒有活動嗎？</h3>
+                <p className="text-muted-foreground text-sm mb-4">建立一個新活動，邀請大家一起運動！</p>
+                <Link to={`/club/new-activity?groupId=${currentClub?.id}`}>
+                  <Button className="gap-2">
+                    <Plus className="h-4 w-4" />
+                    建立活動
+                  </Button>
+                </Link>
+              </div>
+            ) : (
             <div className="space-y-3">
               {upcomingActivities.map((activity) => (
                 <div key={activity.id} className="flex items-center justify-between p-4 rounded-lg bg-secondary">
@@ -486,6 +506,7 @@ export default function ClubDashboard() {
                 </div>
               ))}
             </div>
+          )}
           </CardContent>
         </Card>
 
@@ -682,7 +703,7 @@ export default function ClubDashboard() {
                   <div className="flex items-center justify-between">
                     <CardTitle>計分紀錄</CardTitle>
                     <div className="flex gap-2">
-                      <Link to="/club/scores">
+                      <Link to={`/club/scores?groupId=${displayClub.id}`}>
                         <Button variant="outline" size="sm" className="gap-2">
                           查看全部
                           <ChevronRight className="h-4 w-4" />

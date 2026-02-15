@@ -359,10 +359,31 @@ export default function ClubScores() {
             <h1 className="text-2xl md:text-3xl font-bold text-foreground">計分紀錄</h1>
             <p className="text-muted-foreground mt-1">以活動為單位查看比賽分數</p>
           </div>
-          <Button variant="outline" className="gap-2">
-            <Download className="h-4 w-4" />
-            匯出 CSV
-          </Button>
+          <div className="flex gap-2">
+            <div className="w-[180px]">
+              <Select 
+                value={groupId || ""} 
+                onValueChange={(val) => {
+                  setSearchParams({ groupId: val }, { replace: true });
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="選擇球團" />
+                </SelectTrigger>
+                <SelectContent>
+                  {groups?.map((group) => (
+                    <SelectItem key={group.id} value={group.id.toString()}>
+                      {group.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <Button variant="outline" className="gap-2">
+              <Download className="h-4 w-4" />
+              匯出 CSV
+            </Button>
+          </div>
         </div>
 
         {/* Stats */}

@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, ReactNode, useRef } from "react";
 
 export interface User {
   id: string;
@@ -23,16 +23,70 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 const AUTH_STORAGE_KEY = "court_connect_auth";
 const TOKEN_STORAGE_KEY = "court_connect_token";
 
+// Helper function to check token validity
+const isTokenValid = (token: string): boolean => {
+  if (!token) return false;
+  try {
+    const base64Url = token.split('.')[1];
+    let base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const padding = base64.length % 4;
+    if (padding) {
+      base64 += '='.repeat(4 - padding);
+    }
+    
+    const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+        return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+    }).join(''));
+
+    const payload = JSON.parse(jsonPayload);
+    // Safety check for exp
+    if (!payload.exp) return true; // No expiration = valid forever? Or invalid? Assume valid for dev tokens.
+    
+    const expiry = payload.exp * 1000;
+    return Date.now() < expiry;
+  } catch (e) {
+    console.error("Token validation failed:", e);
+    return false;
+  }
+};
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Use refs to keep track of current state inside the fetch interceptor
+  const userRef = useRef(user);
+  const tokenRef = useRef(token);
+  
+  useEffect(() => {
+    userRef.current = user;
+    tokenRef.current = token;
+  }, [user, token]);
+
+  const logout = () => {
+    setUser(null);
+    setToken(null);
+    localStorage.removeItem(AUTH_STORAGE_KEY);
+    localStorage.removeItem(TOKEN_STORAGE_KEY);
+  };
+  
+  // Make logout stable ref for interceptor
+  const logoutRef = useRef(logout);
+  useEffect(() => { logoutRef.current = logout; }, [logout]);
 
   // 從 localStorage 載入用戶資料和 Token
   useEffect(() => {
     const storedAuth = localStorage.getItem(AUTH_STORAGE_KEY);
     const storedToken = localStorage.getItem(TOKEN_STORAGE_KEY);
     
+    // Check if token is expired immediately upon load
+    if (storedToken && !isTokenValid(storedToken)) {
+         logout();
+         setIsLoading(false);
+         return;
+    }
+
     if (storedAuth) {
       try {
         const userData = JSON.parse(storedAuth);
@@ -50,6 +104,48 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsLoading(false);
   }, []);
 
+  // Global fetch interceptor for 401
+  useEffect(() => {
+    // Save original fetch
+    const originalFetch = window.fetch;
+
+    window.fetch = async (...args) => {
+        try {
+            const response = await originalFetch(...args);
+            if (response.status === 401) {
+                // Check if we *think* we are logged in (via localStorage)
+                // Using localStorage is safer than closure state here
+                if (localStorage.getItem(TOKEN_STORAGE_KEY)) {
+                    console.warn("API returned 401 - clearing auth");
+                    
+                    // Clear storage
+                    localStorage.removeItem(TOKEN_STORAGE_KEY);
+                    localStorage.removeItem(AUTH_STORAGE_KEY);
+                    
+                    // Update React state via stable setters or reload
+                    // To be safe and ensure clean slate:
+                    // window.location.reload(); 
+                    
+                    // Or call logout via ref if we want to avoid reload
+                    // But we can't easily access the ref from this closure if it's not in deps
+                    // Actually, we can just dispatch an event?
+                    // Or just use the setters if they are stable (useState setters are stable)
+                    setUser(null);
+                    setToken(null);
+                }
+            }
+            return response;
+        } catch (e) {
+            throw e;
+        }
+    };
+
+    return () => {
+        window.fetch = originalFetch;
+    };
+  }, []); // Empty dependency array ensures we only monkey-patch once
+
+
   // 當用戶資料變更時，同步到 localStorage
   useEffect(() => {
     console.log("User state changed:", user);
@@ -62,8 +158,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // 當 Token 變更時，同步到 localStorage
   useEffect(() => {
-    console.log("Token state changed:", token ? "Token set" : "No token");
+    // console.log("Token state changed:", token ? "Token set" : "No token");
     if (token) {
+      if (!isTokenValid(token)) {
+          console.warn("Token expired, clearing");
+          logout();
+          return;
+      }
       localStorage.setItem(TOKEN_STORAGE_KEY, token);
     } else {
       localStorage.removeItem(TOKEN_STORAGE_KEY);
@@ -94,12 +195,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     window.location.href = lineAuthUrl.toString();
   };
 
-  const logout = () => {
-    setUser(null);
-    setToken(null);
-    localStorage.removeItem(AUTH_STORAGE_KEY);
-    localStorage.removeItem(TOKEN_STORAGE_KEY);
-  };
+  // Removed duplicate logout function
+  // const logout = () => { ... }
 
   return (
     <AuthContext.Provider

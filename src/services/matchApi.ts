@@ -52,17 +52,31 @@ export interface MatchResponse {
 /**
  * 取得活動詳情
  */
-export async function getMatch(token: string, id: string): Promise<MatchResponse> {
+export async function getMatch(token: string | undefined, id: string): Promise<MatchResponse> {
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+  
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+
   const response = await fetch(`${API_BASE_URL}/api/matches/${id}`, {
     method: "GET",
-    headers: {
-      "Authorization": `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
+    headers,
   });
 
   if (!response.ok) {
-    throw new Error("取得活動詳情失敗");
+    // 若為 401 且沒有 token，可能是後端強制要求登入才能看詳情
+    // 此時前端會拋出錯誤，讓頁面攔截錯誤顯示「請先登入」
+    const errorText = await response.text();
+    let errorMsg = `取得活動詳情失敗 (${response.status})`;
+    try {
+        const errorJson = JSON.parse(errorText);
+        if (errorJson.message) errorMsg = errorJson.message;
+    } catch {}
+
+    throw new Error(errorMsg);
   }
 
   const result = await response.json();
