@@ -84,13 +84,18 @@ export async function createGroup(token: string, data: CreateGroupRequest): Prom
 /**
  * 取得球團列表
  */
-export async function getGroups(token: string): Promise<GroupResponse[]> {
+export async function getGroups(token?: string): Promise<GroupResponse[]> {
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+
   const response = await fetch(`${API_BASE_URL}/api/groups`, {
     method: "GET",
-    headers: {
-      "Authorization": `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
+    headers,
   });
 
   if (!response.ok) {
@@ -110,13 +115,18 @@ export async function getGroups(token: string): Promise<GroupResponse[]> {
 /**
  * 取得單一球團詳情
  */
-export async function getGroup(id: number, token: string): Promise<GroupResponse> {
+export async function getGroup(id: number, token?: string): Promise<GroupResponse> {
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+
   const response = await fetch(`${API_BASE_URL}/api/groups/${id}`, {
     method: "GET",
-    headers: {
-      "Authorization": `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
+    headers,
   });
 
   if (!response.ok) {

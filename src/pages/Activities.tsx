@@ -212,8 +212,8 @@ export default function Activities() {
         time: timeStr,
         location: match.court || match.address,
         hostName: match.groupName || match.host || "活動主",
-        hostCreditScore: 5.0, // API missing
-        hostConfidence: "high" as const, // API missing
+        // hostCreditScore: 5.0, // API missing
+        // hostConfidence: "high" as const, // API missing
         levelRange: { min: match.minGrade, max: match.maxGrade },
         isCasualOpen: match.isGuestPlayerAllowed ?? false,
         currentSlots: match.participants?.length || 0,

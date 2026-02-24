@@ -4,7 +4,6 @@ import { MainLayout } from "@/components/layout/MainLayout";
 import { Button } from "@/components/ui/button";
 import { SportBadge, SportType } from "@/components/ui/SportBadge";
 import { SkillLevelBadge } from "@/components/ui/SkillLevelBadge";
-import { CreditBadge } from "@/components/ui/CreditBadge";
 import { WaitlistCard } from "@/components/ui/ActivityCard";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -48,8 +47,8 @@ const mockActivity = {
   address: "台北市大安區辛亥路三段55號",
   hostName: "王小明",
   hostAvatar: "",
-  hostCreditScore: 4.8,
-  hostConfidence: "high" as const,
+  // hostCreditScore: 4.8,
+  // hostConfidence: "high" as const,
   hostAttendanceRate: 98,
   levelRange: { min: 3, max: 5 },
   isCasualOpen: true,
@@ -194,8 +193,8 @@ export default function ActivityDetail() {
     address: match.address,
     hostName: match.groupName || "個人開團", // Placeholder if personal
     hostAvatar: "", // Not provided in API
-    hostCreditScore: 0, // Not provided in API
-    hostConfidence: "high" as const, // Placeholder
+    // hostCreditScore: 0, // Not provided in API
+    // hostConfidence: "high" as const, // Placeholder
     hostAttendanceRate: 0, // Placeholder
     levelRange: { min: match.minGrade, max: match.maxGrade },
     isCasualOpen: match.isGuestPlayerAllowed || false,
@@ -492,12 +491,7 @@ export default function ActivityDetail() {
                 </div>
                 <div>
                   <div className="font-semibold text-foreground">{activity.hostName}</div>
-                  <CreditBadge 
-                    score={activity.hostCreditScore} 
-                    confidence={activity.hostConfidence}
-                    showDetails
-                    size="sm"
-                  />
+                  {/* hostCreditScore 尚未實作，暫時隱藏 */}
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4 pt-4 border-t border-border">

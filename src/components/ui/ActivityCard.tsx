@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import { MapPin, Clock, Users, Star, CheckCircle } from "lucide-react";
+import { MapPin, Clock, Users } from "lucide-react";
 import { SportBadge, SportType } from "./SportBadge";
 import { SkillLevelBadge } from "./SkillLevelBadge";
 import { Button } from "./button";
@@ -14,8 +14,8 @@ interface ActivityCardProps {
   location: string;
   hostName: string;
   hostAvatar?: string;
-  hostCreditScore: number;
-  hostConfidence: "high" | "medium" | "low";
+  // hostCreditScore: number;
+  // hostConfidence: "high" | "medium" | "low";
   levelRange: { min: number; max: number };
   isCasualOpen: boolean;
   currentSlots: number;
@@ -34,8 +34,8 @@ export function ActivityCard({
   location,
   hostName,
   hostAvatar,
-  hostCreditScore,
-  hostConfidence,
+  // hostCreditScore,
+  // hostConfidence,
   levelRange,
   isCasualOpen,
   currentSlots,
@@ -114,10 +114,7 @@ export function ActivityCard({
             </div>
             <div>
               <div className="text-sm font-medium text-foreground">{hostName}</div>
-              <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                <Star className="h-3 w-3 fill-primary text-primary" />
-                <span>{hostCreditScore.toFixed(1)}</span>
-              </div>
+              {/* hostCreditScore 尚未實作，暫時隱藏 */}
             </div>
           </div>
           

@@ -9,7 +9,7 @@ import { ClubInviteDialog } from "@/components/ClubInviteDialog";
 import { ClubSettingsDialog } from "@/components/ClubSettingsDialog";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
-import { getGroups, getGroupMembers, getGroupPayments, removeMember, updateMemberRole, GroupResponse, GroupMemberResponse, PaymentResponse } from "@/services/groupApi";
+import { getGroup, getGroups, getGroupMembers, getGroupPayments, removeMember, updateMemberRole, GroupResponse, GroupMemberResponse, PaymentResponse } from "@/services/groupApi";
 import { getMatches, MatchResponse } from "@/services/matchApi";
 import { getPaymentTypes, getGroupRoles, PaymentTypeEnum, GroupRoleEnum } from "@/services/enumApi";
 import { useToast } from "@/hooks/use-toast";
@@ -147,6 +147,12 @@ export default function ClubDashboard() {
   const currentClub = groupId 
     ? groups?.find(g => g.id.toString() === groupId) 
     : groups?.[0];
+
+  const { data: currentClubDetail } = useQuery<GroupResponse>({
+    queryKey: ['groupDetail', currentClub?.id],
+    queryFn: () => getGroup(currentClub!.id, token!),
+    enabled: !!token && !!currentClub,
+  });
 
   // If we're done loading and still don't have a club, redirect to list
   if (!isLoading && groups && groups.length > 0 && !currentClub) {
@@ -334,7 +340,7 @@ export default function ClubDashboard() {
             />
             {currentClub && (
               <ClubSettingsDialog 
-                club={currentClub}
+                club={currentClubDetail || currentClub}
                 trigger={
                   <Button variant="outline" size="icon">
                     <Settings className="h-4 w-4" />

@@ -6,6 +6,7 @@ import { CreditBadge } from "@/components/ui/CreditBadge";
 import { Link } from "react-router-dom";
 import { getSports, SportEnum } from "@/services/enumApi";
 import { getMatches, MatchResponse } from "@/services/matchApi";
+import { getGroup, getGroups, GroupResponse } from "@/services/groupApi";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { format } from "date-fns";
@@ -31,8 +32,8 @@ const mockActivities = [
     time: "19:00-21:00",
     location: "台北市大安運動中心",
     hostName: "王小明",
-    hostCreditScore: 4.8,
-    hostConfidence: "high" as const,
+    // hostCreditScore: 4.8,
+    // hostConfidence: "high" as const,
     levelRange: { min: 3, max: 5 },
     isCasualOpen: true,
     currentSlots: 6,
@@ -47,8 +48,8 @@ const mockActivities = [
     time: "09:00-12:00",
     location: "新北市板橋網球場",
     hostName: "李大華",
-    hostCreditScore: 4.5,
-    hostConfidence: "medium" as const,
+    // hostCreditScore: 4.5,
+    // hostConfidence: "medium" as const,
     levelRange: { min: 4, max: 6 },
     isCasualOpen: false,
     currentSlots: 4,
@@ -64,8 +65,8 @@ const mockActivities = [
     time: "18:30-20:30",
     location: "台北市信義運動中心",
     hostName: "陳志強",
-    hostCreditScore: 4.2,
-    hostConfidence: "high" as const,
+    // hostCreditScore: 4.2,
+    // hostConfidence: "high" as const,
     levelRange: { min: 2, max: 4 },
     isCasualOpen: true,
     currentSlots: 5,
@@ -80,8 +81,8 @@ const mockActivities = [
     time: "14:00-17:00",
     location: "台中市北區體育館",
     hostName: "林美玲",
-    hostCreditScore: 4.9,
-    hostConfidence: "high" as const,
+    // hostCreditScore: 4.9,
+    // hostConfidence: "high" as const,
     levelRange: { min: 3, max: 5 },
     isCasualOpen: true,
     currentSlots: 8,
@@ -96,35 +97,17 @@ const mockCoaches = [
   { id: "3", name: "陳教練", sport: "basketball" as SportType, rating: 4.8, reviews: 64, price: 600, avatar: "" },
 ];
 
-const mockClubs = [
-  { id: "1", name: "羽翔俱樂部", sport: "badminton" as SportType, members: 42, rating: 4.7 },
-  { id: "2", name: "台北網球聯盟", sport: "tennis" as SportType, members: 28, rating: 4.5 },
-  { id: "3", name: "籃球夢工廠", sport: "basketball" as SportType, members: 56, rating: 4.8 },
-];
-
 const mapSportIdToType = (id: number): SportType => {
   switch (id) {
     case 1: return "badminton";
     case 2: return "tennis";
-    case 3: return "table-tennis"; // Based on typical ordering, but ideally should be dynamic
-    case 4: return "volleyball"; // Just guessing based on standard ids usually used
-    case 5: return "basketball"; // Wait, I should verify this if possible.
-    // If I look at enumApi.ts, it fetches from backend.
-    // Let's assume standard mapping for now or default to badminton.
+    case 3: return "table-tennis";
+    case 4: return "basketball";
+    case 5: return "volleyball";
+    case 6: return "soccer";
     default: return "badminton";
   }
 };
-// Correction based on common sense of this project or typical setups:
-// Usually 1=Badminton, 2=Tennis, 3=Table Tennis, 4=Volleyball, 5=Basketball, 6=Soccer
-// But let's check if I can find any reference. `sportTypes` array has order: "badminton", "tennis", "basketball", "volleyball", "table-tennis", "soccer".
-// This might imply 0: badminton, 1: tennis etc? No, usually DB IDs start at 1.
-
-// Let's try to infer from `mockActivities`:
-// { sport: "badminton" } -> might be ID 1
-// { sport: "tennis" } -> might be ID 2
-// { sport: "basketball" } -> might be ID 3 (in mock it was item 3)
-
-// I'll stick to a safe mapping and maybe improve later if I see `enumApi` response.
 
 const mapSportEnumToType = (enumName: string): SportType => {
   const lower = enumName.toLowerCase();
@@ -141,6 +124,10 @@ export default function Index() {
   const { token } = useAuth();
   const [sports, setSports] = useState<SportEnum[]>([]);
   const [hotActivities, setHotActivities] = useState<any[]>([]);
+  const [hotClubs, setHotClubs] = useState<GroupResponse[]>([]);
+  const [selectedClubId, setSelectedClubId] = useState<number | null>(null);
+  const [selectedClubDetail, setSelectedClubDetail] = useState<GroupResponse | null>(null);
+  const [isClubDetailLoading, setIsClubDetailLoading] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -176,8 +163,8 @@ export default function Index() {
             time: `${format(new Date(m.dateTime), "HH:mm")}-${format(new Date(m.endDateTime), "HH:mm")}`,
             location: m.court,
             hostName: m.groupName || m.host || "活動主",
-            hostCreditScore: 5.0, // Default
-            hostConfidence: "high" as const,
+            // hostCreditScore: 5.0, // API 尚未實作
+            // hostConfidence: "high" as const,
             levelRange: { min: m.minGrade, max: m.maxGrade },
             isCasualOpen: m.isGuestPlayerAllowed ?? false,
             currentSlots: m.participants?.length || 0,
@@ -194,6 +181,37 @@ export default function Index() {
 
     fetchData();
   }, [token]);
+
+  useEffect(() => {
+    const fetchHotClubs = async () => {
+      try {
+        const groups = await getGroups(token || undefined);
+        const topClubs = [...groups]
+          .sort((a, b) => b.memberCount - a.memberCount)
+          .slice(0, 3);
+        setHotClubs(topClubs);
+      } catch (error) {
+        console.error("Failed to load hot clubs", error);
+        setHotClubs([]);
+      }
+    };
+
+    fetchHotClubs();
+  }, [token]);
+
+  const handleClubClick = async (clubId: number) => {
+    setSelectedClubId(clubId);
+    setIsClubDetailLoading(true);
+    try {
+      const detail = await getGroup(clubId, token || undefined);
+      setSelectedClubDetail(detail);
+    } catch (error) {
+      console.error("Failed to load club detail", error);
+      setSelectedClubDetail(null);
+    } finally {
+      setIsClubDetailLoading(false);
+    }
+  };
 
   // Helper to get emoji safely
   const getSportEmoji = (sportName: string) => {
@@ -355,7 +373,7 @@ export default function Index() {
               <h2 className="text-2xl md:text-3xl font-bold text-foreground">熱門球團</h2>
               <p className="text-muted-foreground mt-1">加入球團，認識更多球友</p>
             </div>
-            <Link to="/clubs">
+            <Link to="/club">
               <Button variant="ghost" className="gap-2">
                 查看全部 <ArrowRight className="h-4 w-4" />
               </Button>
@@ -363,36 +381,56 @@ export default function Index() {
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {mockClubs.map((club, index) => (
-              <div 
-                key={club.id} 
-                className="group p-6 rounded-xl border bg-card shadow-card hover:shadow-card-hover transition-all duration-300 animate-fade-in"
-                style={{ animationDelay: `${index * 0.1}s` }}
-              >
-                <div className="flex items-center gap-4 mb-4">
-                  <div className="w-14 h-14 rounded-xl bg-primary/10 flex items-center justify-center">
-                    <span className="text-2xl">{sportConfig[club.sport].emoji}</span>
+            {hotClubs.map((club, index) => {
+              const sportType = mapSportIdToType(club.sport);
+              return (
+                <button
+                  key={club.id}
+                  type="button"
+                  onClick={() => handleClubClick(club.id)}
+                  className="group p-6 rounded-xl border bg-card shadow-card hover:shadow-card-hover transition-all duration-300 animate-fade-in text-left"
+                  style={{ animationDelay: `${index * 0.1}s` }}
+                >
+                  <div className="flex items-center gap-4 mb-4">
+                    <div className="w-14 h-14 rounded-xl bg-primary/10 flex items-center justify-center">
+                      <span className="text-2xl">{sportConfig[sportType].emoji}</span>
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-foreground group-hover:text-primary transition-colors">
+                        {club.name}
+                      </h3>
+                      <SportBadge sport={sportType} size="sm" />
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="font-semibold text-foreground group-hover:text-primary transition-colors">
-                      {club.name}
-                    </h3>
-                    <SportBadge sport={club.sport} size="sm" />
+                  <div className="flex items-center justify-between pt-4 border-t border-border">
+                    <div className="flex items-center gap-1">
+                      <Users className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-sm text-muted-foreground">{club.memberCount} 成員</span>
+                    </div>
                   </div>
-                </div>
-                <div className="flex items-center justify-between pt-4 border-t border-border">
-                  <div className="flex items-center gap-1">
-                    <Users className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-sm text-muted-foreground">{club.members} 成員</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Star className="h-4 w-4 fill-primary text-primary" />
-                    <span className="font-medium">{club.rating}</span>
-                  </div>
-                </div>
-              </div>
-            ))}
+                </button>
+              );
+            })}
           </div>
+
+          {selectedClubId && (
+            <div className="mt-6 p-6 rounded-xl border bg-card shadow-card">
+              {isClubDetailLoading ? (
+                <p className="text-sm text-muted-foreground">載入球團資料中...</p>
+              ) : selectedClubDetail ? (
+                <div className="space-y-2">
+                  <h3 className="text-lg font-semibold text-foreground">{selectedClubDetail.name}</h3>
+                  <p className="text-sm text-muted-foreground">{selectedClubDetail.description || "尚無簡介"}</p>
+                  <p className="text-sm text-muted-foreground">活動地點：{selectedClubDetail.court || "未填寫"}</p>
+                  <p className="text-sm text-muted-foreground">地址：{selectedClubDetail.address || "未填寫"}</p>
+                  <p className="text-sm text-muted-foreground">聯絡電話：{selectedClubDetail.phone || "未填寫"}</p>
+                  <p className="text-sm text-muted-foreground">Email：{selectedClubDetail.email || "未填寫"}</p>
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">載入球團資料失敗，請稍後再試。</p>
+              )}
+            </div>
+          )}
         </div>
       </section>
 
