@@ -372,9 +372,11 @@ function ActivityItem({ activity, isPast = false }: ActivityItemProps) {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem>
-                <Link to={`/club/activities/${activity.id}/edit`}>編輯活動</Link>
-              </DropdownMenuItem>
+              {!isPast && (
+                <DropdownMenuItem>
+                  <Link to={`/club/activities/${activity.id}/edit`}>編輯活動</Link>
+                </DropdownMenuItem>
+              )}
               <DropdownMenuItem>
                 <Link to={`/club/activities/${activity.id}/participants`}>管理報名</Link>
               </DropdownMenuItem>

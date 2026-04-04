@@ -46,7 +46,7 @@ export default function LineCallback() {
 
       try {
         // 處理 LINE 回調並呼叫後端 API
-        const { user, token } = await processLineCallback(code);
+        const { user, token, phone } = await processLineCallback(code);
         setUser(user);
         setToken(token);
         setStatus("success");
@@ -58,7 +58,12 @@ export default function LineCallback() {
         
         // 延遲導向，讓用戶看到成功訊息
         setTimeout(() => {
-          navigate(redirectUrl || "/", { replace: true });
+          // 若尚未填寫電話，強制導向個人資料頁面補填
+          if (!phone) {
+            navigate("/profile", { replace: true });
+          } else {
+            navigate(redirectUrl || "/", { replace: true });
+          }
         }, 1500);
       } catch (err) {
         console.error("LINE callback error:", err);
