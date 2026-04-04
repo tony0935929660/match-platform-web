@@ -201,11 +201,16 @@ export default function ActivityDetail() {
     casualSlots: 0, // Not provided
     casualFee: match.price, // Assuming same price if not specified distinct
     regularFee: match.price,
-    currentSlots: 0, // Not provided in createMatch response, might need another API or update
+    currentSlots: match.participants?.length || 0,
     maxSlots: match.requiredPeople,
     isScoringMode: match.isScoreRecordEnabled || false,
     waitlistOpenTime: "", // Not provided
-    participants: [], // Not provided in match details currently
+    participants: (match.participants || []).map((p: any) => ({
+      id: String(p.id ?? p.userId ?? Math.random()),
+      name: p.name || p.lineName || p.displayName || "參與者",
+      isHost: (p.name || p.lineName) === match.host,
+      level: p.grade ?? p.level ?? 0,
+    })),
     waitlist: [], // Not provided
     startDateTime: new Date(match.dateTime),
     endDateTime: new Date(match.endDateTime),

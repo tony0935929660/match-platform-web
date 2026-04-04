@@ -101,6 +101,17 @@ export default function ClubEditActivity() {
           guestPlayerJoinBeforeStartMinutes: match.guestPlayerJoinBeforeStartMinutes?.toString() || "60",
           isScoreRecordEnabled: match.isScoreRecordEnabled ?? false,
         });
+
+        // Guard: prevent editing past activities
+        if (new Date(match.dateTime) < new Date()) {
+          toast({
+            title: "無法編輯歷史活動",
+            description: "已結束的活動不可修改",
+            variant: "destructive",
+          });
+          navigate(-1);
+          return;
+        }
       } catch (error) {
         console.error("Failed to fetch match", error);
         toast({

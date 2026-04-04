@@ -157,7 +157,7 @@ export function createUserFromBackendResponse(response: BackendAuthResponse): Us
 /**
  * 使用授權碼登入（讓後端處理 token 交換）
  */
-export async function processLineCallback(code: string): Promise<{ user: User; token: string }> {
+export async function processLineCallback(code: string): Promise<{ user: User; token: string; phone: string | null }> {
   /*
    * 修改說明：
    * 原本流程是在前端換取 access token，然後傳給後端。
@@ -182,5 +182,6 @@ export async function processLineCallback(code: string): Promise<{ user: User; t
   return {
     user,
     token: backendResponse.data.token,
+    phone: backendResponse.data.user.phone ?? null,
   };
 }
