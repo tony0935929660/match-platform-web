@@ -30,7 +30,8 @@ import {
   Filter,
   Loader2
 } from "lucide-react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link } from "react-router-dom";
+import { useClub } from "@/contexts/ClubContext";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { getGroup, getGroupMembers, removeMember, updateMemberRole, GroupMemberResponse } from "@/services/groupApi";
@@ -38,8 +39,8 @@ import { getGroupRoles, GroupRoleEnum } from "@/services/enumApi";
 import { useToast } from "@/hooks/use-toast";
 
 export default function ClubMembers() {
-  const [searchParams] = useSearchParams();
-  const groupId = searchParams.get("groupId") || "";
+  const { selectedGroupId } = useClub();
+  const groupId = selectedGroupId || "";
   const { token, user } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
   const { toast } = useToast();
@@ -151,7 +152,7 @@ export default function ClubMembers() {
       <div className="container py-6 md:py-8">
         {/* Header */}
         <div className="flex items-center gap-4 mb-6">
-          <Link to={`/club?groupId=${groupId}`}>
+          <Link to="/club/dashboard">
             <Button variant="ghost" size="icon">
               <ArrowLeft className="h-5 w-5" />
             </Button>

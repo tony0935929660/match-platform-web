@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { ClubProvider } from "@/contexts/ClubContext";
 import Index from "./pages/Index";
 import Activities from "./pages/Activities";
 import ActivityDetail from "./pages/ActivityDetail";
@@ -40,6 +41,7 @@ export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
+        <ClubProvider>
         <TooltipProvider>
           <Toaster />
           <Sonner />
@@ -78,6 +80,7 @@ export default function App() {
             </Routes>
           </BrowserRouter>
         </TooltipProvider>
+        </ClubProvider>
       </AuthProvider>
     </QueryClientProvider>
   );

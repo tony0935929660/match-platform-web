@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "react-router-dom";
+import { useClub } from "@/contexts/ClubContext";
 import { 
   Users, 
   Plus, 
@@ -33,6 +34,7 @@ const getSportType = (id: number): SportType => {
 export default function ClubList() {
   const { token } = useAuth();
   const navigate = useNavigate();
+  const { setSelectedGroupId } = useClub();
 
   const { data: groups = [], isLoading } = useQuery<GroupResponse[]>({
     queryKey: ['groups'],
@@ -102,7 +104,11 @@ export default function ClubList() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {groups.map((group) => (
-              <Link key={group.id} to={`/club/dashboard?groupId=${group.id}`}>
+              <Link
+                key={group.id}
+                to="/club/dashboard"
+                onClick={() => setSelectedGroupId(group.id.toString())}
+              >
                 <Card className="h-full hover:shadow-lg transition-all cursor-pointer group border-transparent hover:border-primary/20">
                   <CardHeader className="pb-4">
                     <div className="flex justify-between items-start mb-2">
