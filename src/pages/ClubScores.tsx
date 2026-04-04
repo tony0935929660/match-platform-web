@@ -37,7 +37,8 @@ import {
   UserPlus,
   Loader2
 } from "lucide-react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link } from "react-router-dom";
+import { useClub } from "@/contexts/ClubContext";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -104,8 +105,7 @@ const getSportType = (id: number): SportType => {
 
 export default function ClubScores() {
   const { token } = useAuth();
-  const [searchParams, setSearchParams] = useSearchParams();
-  const paramGroupId = searchParams.get("groupId");
+  const { selectedGroupId, setSelectedGroupId } = useClub();
   const queryClient = useQueryClient();
 
   // Fetch groups to determine ID if missing
@@ -115,14 +115,7 @@ export default function ClubScores() {
     enabled: !!token,
   });
 
-  const groupId = paramGroupId || (groups && groups.length > 0 ? groups[0].id.toString() : null);
-
-  // Update URL if using default group
-  useEffect(() => {
-    if (!paramGroupId && groupId) {
-      setSearchParams({ groupId }, { replace: true });
-    }
-  }, [paramGroupId, groupId, setSearchParams]);
+  const groupId = selectedGroupId || (groups && groups.length > 0 ? groups[0].id.toString() : null);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedActivity, setSelectedActivity] = useState<MatchResponse | null>(null);
@@ -350,7 +343,7 @@ export default function ClubScores() {
       <div className="container py-6 md:py-8">
         {/* Header */}
         <div className="flex items-center gap-4 mb-6">
-          <Link to="/club">
+          <Link to="/club/dashboard">
             <Button variant="ghost" size="icon">
               <ArrowLeft className="h-5 w-5" />
             </Button>
@@ -364,7 +357,7 @@ export default function ClubScores() {
               <Select 
                 value={groupId || ""} 
                 onValueChange={(val) => {
-                  setSearchParams({ groupId: val }, { replace: true });
+                  setSelectedGroupId(val);
                 }}
               >
                 <SelectTrigger>

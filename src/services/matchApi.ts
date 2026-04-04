@@ -45,6 +45,7 @@ export interface MatchResponse {
   guestPlayerJoinBeforeStartMinutes?: number;
   isScoreRecordEnabled?: boolean;
   userRole?: number; // 0: None, 1: Viewer, 2: Participant, 3: Host
+  participantCount?: number;
   createdAt: string;
   updatedAt: string;
 }

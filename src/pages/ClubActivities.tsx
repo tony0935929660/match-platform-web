@@ -35,7 +35,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link } from "react-router-dom";
+import { useClub } from "@/contexts/ClubContext";
 
 
 const mockClubActivities = [
@@ -119,11 +120,11 @@ const getSportType = (id: number): SportType => {
 
 
 export default function ClubActivities() {
-  const [searchParams, setSearchParams] = useSearchParams();
   const [searchQuery, setSearchQuery] = useState("");
   const { token } = useAuth();
-  
-  const selectedClubId = searchParams.get("groupId") || "all";
+  const { selectedGroupId, setSelectedGroupId } = useClub();
+
+  const selectedClubId = selectedGroupId || "all";
 
   const { data: groups } = useQuery({
     queryKey: ['groups'],
@@ -186,7 +187,7 @@ export default function ClubActivities() {
       <div className="container py-6 md:py-8">
         {/* Header */}
         <div className="flex items-center gap-4 mb-6">
-          <Link to="/club">
+          <Link to="/club/dashboard">
             <Button variant="ghost" size="icon">
               <ArrowLeft className="h-5 w-5" />
             </Button>
@@ -218,12 +219,7 @@ export default function ClubActivities() {
             <Select 
                 value={selectedClubId} 
                 onValueChange={(val) => {
-                  setSearchParams(prev => {
-                    const newParams = new URLSearchParams(prev);
-                    if (val === "all") newParams.delete("groupId");
-                    else newParams.set("groupId", val);
-                    return newParams;
-                  });
+                  setSelectedGroupId(val === "all" ? null : val);
                 }}
             >
                 <SelectTrigger>

@@ -33,7 +33,8 @@ import {
   Filter,
   Loader2
 } from "lucide-react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link } from "react-router-dom";
+import { useClub } from "@/contexts/ClubContext";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -49,8 +50,8 @@ import {
 import { getPaymentTypes, PaymentTypeEnum } from "@/services/enumApi";
 
 export default function ClubPayments() {
-  const [searchParams] = useSearchParams();
-  const groupId = searchParams.get("groupId") || "";
+  const { selectedGroupId } = useClub();
+  const groupId = selectedGroupId || "";
   const { token } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -188,7 +189,7 @@ export default function ClubPayments() {
       <div className="container py-6 md:py-8">
         {/* Header */}
         <div className="flex items-center gap-4 mb-6">
-          <Link to={`/club?groupId=${groupId}`}>
+          <Link to="/club/dashboard">
             <Button variant="ghost" size="icon">
               <ArrowLeft className="h-5 w-5" />
             </Button>

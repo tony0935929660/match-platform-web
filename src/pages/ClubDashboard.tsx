@@ -32,7 +32,8 @@ import {
   MapPin,
   QrCode
 } from "lucide-react";
-import { Link, useSearchParams, useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { useClub } from "@/contexts/ClubContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   DropdownMenu,
@@ -129,12 +130,12 @@ export default function ClubDashboard() {
   const { token, user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const { selectedGroupId } = useClub();
   const queryClient = useQueryClient();
   const [memberToDelete, setMemberToDelete] = useState<GroupMemberResponse | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
-  const groupId = searchParams.get("groupId");
+  const groupId = selectedGroupId;
 
   const { data: groups, isLoading } = useQuery({
     queryKey: ['groups'],
@@ -322,7 +323,7 @@ export default function ClubDashboard() {
             </div>
           </div>
           <div className="flex gap-2">
-            <Link to={`/club/new-activity?groupId=${currentClub?.id}`}>
+            <Link to="/club/new-activity">
               <Button className="gap-2">
                 <Plus className="h-4 w-4" />
                 新增活動
@@ -353,7 +354,7 @@ export default function ClubDashboard() {
 
         {/* Quick Actions */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-          <Link to={`/club/activities?groupId=${displayClub.id}`}>
+          <Link to="/club/activities">
             <Card className="cursor-pointer hover:shadow-card-hover transition-all h-full">
               <CardContent className="p-4">
                 <div className="flex items-center justify-between mb-3">
@@ -368,7 +369,7 @@ export default function ClubDashboard() {
             </Card>
           </Link>
           
-          <Link to={`/club/members?groupId=${displayClub.id}`}>
+          <Link to="/club/members">
             <Card className="cursor-pointer hover:shadow-card-hover transition-all h-full">
               <CardContent className="p-4">
                 <div className="flex items-center justify-between mb-3">
@@ -421,7 +422,7 @@ export default function ClubDashboard() {
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle>即將舉行的活動</CardTitle>
-              <Link to={`/club/activities?groupId=${displayClub.id}`}>
+              <Link to="/club/activities">
                 <Button variant="outline" size="sm" className="gap-2">
                   查看全部
                   <ChevronRight className="h-4 w-4" />
@@ -437,7 +438,7 @@ export default function ClubDashboard() {
                 </div>
                 <h3 className="font-semibold text-lg mb-1">還沒有活動嗎？</h3>
                 <p className="text-muted-foreground text-sm mb-4">建立一個新活動，邀請大家一起運動！</p>
-                <Link to={`/club/new-activity?groupId=${currentClub?.id}`}>
+                <Link to="/club/new-activity">
                   <Button className="gap-2">
                     <Plus className="h-4 w-4" />
                     建立活動
@@ -541,7 +542,7 @@ export default function ClubDashboard() {
                   <div className="flex items-center justify-between">
                     <CardTitle>成員管理</CardTitle>
                     <div className="flex gap-2">
-                      <Link to={`/club/members?groupId=${displayClub.id}`}>
+                      <Link to="/club/members">
                         <Button variant="outline" size="sm" className="gap-2">
                           查看全部
                           <ChevronRight className="h-4 w-4" />
@@ -652,7 +653,7 @@ export default function ClubDashboard() {
                   <div className="flex items-center justify-between">
                     <CardTitle>收款紀錄</CardTitle>
                     <div className="flex gap-2">
-                      <Link to={`/club/payments?groupId=${displayClub.id}`}>
+                      <Link to="/club/payments">
                         <Button variant="outline" size="sm" className="gap-2">
                           查看全部
                           <ChevronRight className="h-4 w-4" />
@@ -709,7 +710,7 @@ export default function ClubDashboard() {
                   <div className="flex items-center justify-between">
                     <CardTitle>計分紀錄</CardTitle>
                     <div className="flex gap-2">
-                      <Link to={`/club/scores?groupId=${displayClub.id}`}>
+                      <Link to="/club/scores">
                         <Button variant="outline" size="sm" className="gap-2">
                           查看全部
                           <ChevronRight className="h-4 w-4" />

@@ -29,6 +29,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { Link, useSearchParams } from "react-router-dom";
+import { useClub } from "@/contexts/ClubContext";
 
 // Map backend sport value to frontend SportType
 const sportValueToType: Record<number, SportType> = {
@@ -43,8 +44,8 @@ const sportValueToType: Record<number, SportType> = {
 export default function ClubNewActivity() {
   const navigate = useNavigate();
   const { token } = useAuth();
-  const [searchParams] = useSearchParams();
-  const groupId = searchParams.get("groupId");
+  const { selectedGroupId } = useClub();
+  const groupId = selectedGroupId;
   const [showSuccess, setShowSuccess] = useState(false);
   
   const [activity, setActivity] = useState({
@@ -227,7 +228,7 @@ export default function ClubNewActivity() {
             </Card>
 
             <div className="flex gap-3">
-              <Button variant="outline" className="flex-1" onClick={() => navigate(`/club/dashboard?groupId=${currentGroup?.id}`)}>
+              <Button variant="outline" className="flex-1" onClick={() => navigate("/club/dashboard")}>
                 返回球團
               </Button>
               <Button className="flex-1" onClick={() => {
@@ -267,7 +268,7 @@ export default function ClubNewActivity() {
       <div className="container py-6 md:py-8">
         {/* Header */}
         <div className="mb-6">
-          <Link to={`/club/dashboard?groupId=${currentGroup?.id}`} className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-4">
+          <Link to="/club/dashboard" className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-4">
             <ArrowLeft className="h-4 w-4" />
             返回我的球團
           </Link>
