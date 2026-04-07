@@ -174,8 +174,15 @@ export default function ClubActivities() {
     return isUpcoming && matchesSearch;
   });
 
+  const filteredOngoing = displayedMatches.filter(activity => {
+    const isOngoing = new Date(activity.dateTime) <= now && new Date(activity.endDateTime) > now;
+    const matchesSearch = activity.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                          activity.court.toLowerCase().includes(searchQuery.toLowerCase());
+    return isOngoing && matchesSearch;
+  });
+
   const filteredPast = displayedMatches.filter(activity => {
-    const isPast = new Date(activity.dateTime) <= now;
+    const isPast = new Date(activity.endDateTime) <= now;
     const matchesSearch = activity.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
                           activity.court.toLowerCase().includes(searchQuery.toLowerCase());
     return isPast && matchesSearch;
@@ -247,11 +254,17 @@ export default function ClubActivities() {
         )}
 
         {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
           <Card>
             <CardContent className="p-4">
               <div className="text-2xl font-bold text-foreground">{filteredUpcoming.length}</div>
               <div className="text-sm text-muted-foreground">即將舉行</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4">
+              <div className="text-2xl font-bold text-green-600">{filteredOngoing.length}</div>
+              <div className="text-sm text-muted-foreground">進行中</div>
             </CardContent>
           </Card>
           <Card>
@@ -282,12 +295,19 @@ export default function ClubActivities() {
         <Tabs defaultValue="upcoming" className="space-y-6">
           <TabsList>
             <TabsTrigger value="upcoming">即將舉行 ({filteredUpcoming.length})</TabsTrigger>
+            <TabsTrigger value="ongoing">進行中 ({filteredOngoing.length})</TabsTrigger>
             <TabsTrigger value="past">歷史活動 ({filteredPast.length})</TabsTrigger>
           </TabsList>
 
           <TabsContent value="upcoming" className="space-y-4">
             {filteredUpcoming.map((activity) => (
               <ActivityItem key={activity.id} activity={activity} />
+            ))}
+          </TabsContent>
+
+          <TabsContent value="ongoing" className="space-y-4">
+            {filteredOngoing.map((activity) => (
+              <ActivityItem key={activity.id} activity={activity} isOngoing />
             ))}
           </TabsContent>
 
@@ -305,9 +325,10 @@ export default function ClubActivities() {
 interface ActivityItemProps {
   activity: MatchResponse;
   isPast?: boolean;
+  isOngoing?: boolean;
 }
 
-function ActivityItem({ activity, isPast = false }: ActivityItemProps) {
+function ActivityItem({ activity, isPast = false, isOngoing = false }: ActivityItemProps) {
   return (
     <div className="p-4 md:p-6 rounded-xl border bg-card shadow-card">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -319,6 +340,12 @@ function ActivityItem({ activity, isPast = false }: ActivityItemProps) {
               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary">
                 <span className="w-1.5 h-1.5 rounded-full bg-primary" />
                 開放臨打
+              </span>
+            )}
+            {isOngoing && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
+                <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                進行中
               </span>
             )}
             {isPast && (
@@ -376,7 +403,7 @@ function ActivityItem({ activity, isPast = false }: ActivityItemProps) {
               <DropdownMenuItem>
                 <Link to={`/club/activities/${activity.id}/participants`}>管理報名</Link>
               </DropdownMenuItem>
-              {!isPast && <DropdownMenuItem className="text-destructive">取消活動</DropdownMenuItem>}
+              {!isPast && !isOngoing && <DropdownMenuItem className="text-destructive">取消活動</DropdownMenuItem>}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
