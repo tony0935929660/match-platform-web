@@ -716,14 +716,6 @@ export default function ClubDashboard() {
                           <ChevronRight className="h-4 w-4" />
                         </Button>
                       </Link>
-                      <Button variant="outline" size="sm" className="gap-2">
-                        <Download className="h-4 w-4" />
-                        匯出
-                      </Button>
-                      <Button size="sm" className="gap-2">
-                        <Plus className="h-4 w-4" />
-                        新增比賽
-                      </Button>
                     </div>
                   </div>
                 </CardHeader>

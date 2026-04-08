@@ -326,6 +326,26 @@ export default function ClubScores() {
     }
   };
 
+  const handleExportActivity = (activity: MatchResponse, records: ScoreRecordResponse[]) => {
+    const headers = ["場次", "隊伍A", "得分A", "得分B", "隊伍B"];
+    const rows = records.map((r, i) => [
+      i + 1,
+      `"${r.teamAName}"`,
+      r.teamAScore,
+      r.teamBScore,
+      `"${r.teamBName}"`,
+    ]);
+    const csvContent = [headers.join(","), ...rows.map(r => r.join(","))].join("\n");
+    // UTF-8 BOM 讓 Excel 正確顯示中文
+    const blob = new Blob(["\uFEFF" + csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${activity.name.replace(/[\/\\?%*:|"<>]/g, "-")}_計分紀錄.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const formatTeamDisplay = (team: string[]) => {
     if (team.length <= 2) return team.join(" / ");
     return `${team.slice(0, 2).join("、")} +${team.length - 2}`;
@@ -558,17 +578,30 @@ export default function ClubScores() {
 
                   <div className="flex items-center justify-between">
                     <h4 className="font-semibold text-foreground">比賽紀錄</h4>
-                    <Button
-                      size="sm"
-                      className="gap-2"
-                      onClick={() => {
-                        setSelectedActivity(null);
-                        handleOpenAddScores(selectedActivity);
-                      }}
-                    >
-                      <Plus className="h-4 w-4" />
-                      新增比賽
-                    </Button>
+                    <div className="flex gap-2">
+                      {scoreRecords && scoreRecords.length > 0 && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="gap-2"
+                          onClick={() => handleExportActivity(selectedActivity, scoreRecords)}
+                        >
+                          <Download className="h-4 w-4" />
+                          匯出 CSV
+                        </Button>
+                      )}
+                      <Button
+                        size="sm"
+                        className="gap-2"
+                        onClick={() => {
+                          setSelectedActivity(null);
+                          handleOpenAddScores(selectedActivity);
+                        }}
+                      >
+                        <Plus className="h-4 w-4" />
+                        新增比賽
+                      </Button>
+                    </div>
                   </div>
 
                   <div className="space-y-3 max-h-[400px] overflow-y-auto pr-1">

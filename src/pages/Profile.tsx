@@ -44,6 +44,15 @@ import { MatchResponse } from "@/services/matchApi";
 import { useQuery } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
 import { format, subMonths } from "date-fns";
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+} from "recharts";
 import { zhTW } from "date-fns/locale";
 
 // Mapping for sport ID to SportBadge type
@@ -222,8 +231,6 @@ export default function Profile() {
 
     return { month: monthKey, count };
   });
-
-  const maxTrendCount = Math.max(...activityTrend.map(i => i.count), 1);
 
   return (
     <MainLayout>
@@ -567,28 +574,44 @@ export default function Profile() {
           <TabsContent value="trend">
             <div className="rounded-xl border bg-card p-6">
               <h3 className="font-semibold text-foreground mb-6">近 6 個月活動參與</h3>
-              <div className="flex items-end justify-between gap-2 h-48">
-                {activityTrend.map((item) => {
-                  const height = (item.count / maxTrendCount) * 100;
-                  return (
-                    <div key={item.month} className="flex-1 flex flex-col items-center gap-2">
-                      <div 
-                        className="w-full bg-primary/20 rounded-t-md relative group cursor-pointer transition-colors hover:bg-primary/30"
-                        style={{ height: `${height}%` }}
-                      >
-                        <div 
-                          className="absolute bottom-0 left-0 right-0 bg-primary rounded-t-md transition-all duration-300"
-                          style={{ height: `${(item.count / maxTrendCount) * 100}%` }}
-                        />
-                        <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-foreground text-background text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity">
-                          {item.count} 場
-                        </div>
-                      </div>
-                      <span className="text-xs text-muted-foreground">{item.month}</span>
-                    </div>
-                  );
-                })}
-              </div>
+              {!isLoadingMatches && historyMatches.length === 0 ? (
+                <div className="flex items-center justify-center h-48 text-sm text-muted-foreground">
+                  尚無歷史活動資料
+                </div>
+              ) : (
+                <ResponsiveContainer width="100%" height={200}>
+                  <LineChart data={activityTrend} margin={{ top: 8, right: 8, left: -24, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                    <XAxis
+                      dataKey="month"
+                      tick={{ fontSize: 12 }}
+                      tickLine={false}
+                      axisLine={false}
+                    />
+                    <YAxis
+                      allowDecimals={false}
+                      tick={{ fontSize: 12 }}
+                      tickLine={false}
+                      axisLine={false}
+                    />
+                    <Tooltip
+                      formatter={(value: number) => [`${value} 場`, "參與場次"]}
+                      contentStyle={{
+                        borderRadius: "8px",
+                        fontSize: "13px",
+                      }}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="count"
+                      strokeWidth={2}
+                      dot={{ r: 4 }}
+                      activeDot={{ r: 6 }}
+                      className="stroke-primary"
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              )}
             </div>
           </TabsContent>
         </Tabs>
