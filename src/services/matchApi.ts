@@ -50,6 +50,16 @@ export interface MatchResponse {
   updatedAt: string;
 }
 
+// 活動參與者
+export interface MatchParticipant {
+  id: number;
+  userId: number;
+  userName: string;
+  phone: string;
+  role: "Host" | "Participant";
+  createdAt: string;
+}
+
 /**
  * 取得活動詳情
  */
@@ -273,5 +283,28 @@ export async function generateUnpaidRecords(token: string, id: string): Promise<
   return true;
 }
 
+/**
+ * 取得活動參與者名單
+ */
+export async function getMatchParticipants(token: string, id: string): Promise<MatchParticipant[]> {
+  const response = await fetch(`${API_BASE_URL}/api/matches/${id}/participants`, {
+    method: "GET",
+    headers: {
+      "Authorization": `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`取得參與者名單失敗: ${errorText}`);
+  }
+
+  const result = await response.json();
+  if (result.success !== undefined && Array.isArray(result.data)) {
+    return result.data as MatchParticipant[];
+  }
+  return result as MatchParticipant[];
+}
 
 

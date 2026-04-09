@@ -48,8 +48,8 @@ import {
 import { toast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
-import { getMatches, MatchResponse, getMatch } from "@/services/matchApi";
-import { getGroups } from "@/services/groupApi";
+import { getMatches, MatchResponse, getMatch, getMatchParticipants } from "@/services/matchApi";
+import { getGroups, getGroupRank } from "@/services/groupApi";
 import { createScoreRecord, ScoreRecordRequest, getScoreRecords, deleteScoreRecord, ScoreRecordResponse } from "@/services/scoreApi";
 
 // Mapping for sport ID to SportBadge type
@@ -62,14 +62,7 @@ const sportValueToType: Record<number, SportType> = {
   6: "soccer",
 };
 
-// Mock rankings (keep for now as we don't have API for stats)
-const mockRankings = [
-  { rank: 1, name: "林小芳", wins: 12, losses: 2, winRate: "85.7%" },
-  { rank: 2, name: "王小明", wins: 10, losses: 3, winRate: "76.9%" },
-  { rank: 3, name: "李大華", wins: 9, losses: 4, winRate: "69.2%" },
-  { rank: 4, name: "陳美玲", wins: 7, losses: 5, winRate: "58.3%" },
-  { rank: 5, name: "黃志強", wins: 6, losses: 6, winRate: "50.0%" },
-];
+// Mock rankings removed — using /api/groups/{groupId}/rank
 
 const matchTypeOptions = [
   { value: "1v1", label: "單打 (1v1)", teamSize: 1 },
@@ -121,7 +114,8 @@ export default function ClubScores() {
   const [selectedActivity, setSelectedActivity] = useState<MatchResponse | null>(null);
   const [showAddScores, setShowAddScores] = useState(false);
   const [addingToActivity, setAddingToActivity] = useState<MatchResponse | null>(null);
-  const [activityParticipants, setActivityParticipants] = useState<any[]>([]); // Store fetched participants
+  const [activityParticipants, setActivityParticipants] = useState<{ name: string; id: number }[]>([]);
+  const [selectedActivityParticipants, setSelectedActivityParticipants] = useState<{ name: string; id: number }[]>([]);
   const [scoreEntries, setScoreEntries] = useState<ScoreEntry[]>([
     { id: "1", matchType: "1v1", customTeamSize: 1, teamA: [], teamB: [], scoreA: "", scoreB: "" }
   ]);
@@ -138,10 +132,8 @@ export default function ClubScores() {
   // Filter matches
   const filteredActivities = matches
     .filter(activity => {
-      // Remove time restriction to ensure user can see created activities
-      // const isStarted = new Date(activity.dateTime) <= new Date();
       const matchesSearch = activity.name.includes(searchQuery) || activity.dateTime.includes(searchQuery);
-      return matchesSearch;
+      return activity.isScoreRecordEnabled && matchesSearch;
     })
     .sort((a, b) => new Date(b.dateTime).getTime() - new Date(a.dateTime).getTime());
   
@@ -150,6 +142,16 @@ export default function ClubScores() {
     queryKey: ['scores', selectedActivity?.id],
     queryFn: () => getScoreRecords(token!, selectedActivity!.id),
     enabled: !!token && !!selectedActivity,
+    staleTime: 30_000,
+    retry: false,
+  });
+
+  // Fetch group rank
+  const { data: rankData, isLoading: isLoadingRank } = useQuery({
+    queryKey: ['groupRank', groupId],
+    queryFn: () => getGroupRank(token!, Number(groupId)),
+    enabled: !!token && !!groupId,
+    staleTime: 60_000,
   });
 
   const deleteScoreMutation = useMutation({
@@ -163,17 +165,17 @@ export default function ClubScores() {
     }
   });
 
-  // Need to fetch full match details when selecting for adding scores to get participants
+  // Fetch full match details and participant list when selecting an activity for scoring
   const fetchActivityDetails = async (activity: MatchResponse) => {
     try {
-      const detailedMatch = await getMatch(token!, activity.id.toString());
+      const [detailedMatch, participants] = await Promise.all([
+        getMatch(token!, activity.id.toString()),
+        getMatchParticipants(token!, activity.id.toString()),
+      ]);
       setAddingToActivity(detailedMatch);
-      // Extract participants safely
-      const participants = detailedMatch.participants || [];
-      // Normalize participant data to a simple list of names for the UI to use
       setActivityParticipants(participants.map(p => ({
-        name: p.user?.name || p.user?.lineName || p.name || p.lineName || (typeof p === 'string' ? p : "Unknown"),
-        id: p.userId || p.id || (typeof p === 'string' ? p : Math.random().toString())
+        name: p.userName,
+        id: p.userId,
       })));
     } catch (e) {
       console.error("Failed to fetch match details", e);
@@ -187,16 +189,17 @@ export default function ClubScores() {
 
   const handleActivityClick = async (activity: MatchResponse) => {
     try {
-      // Show loading state or open dialog immediately with partial data?
-      // Better to fetch then open to ensure data consistency
-      const detailedMatch = await getMatch(token!, activity.id.toString());
+      const [detailedMatch, participants] = await Promise.all([
+        getMatch(token!, activity.id.toString()),
+        getMatchParticipants(token!, activity.id.toString()),
+      ]);
       setSelectedActivity(detailedMatch);
+      setSelectedActivityParticipants(participants.map(p => ({ name: p.userName, id: p.userId })));
     } catch (e) {
       toast({
         title: "載入詳細資料失敗",
         variant: "destructive"
       });
-      // Fallback to partial data if fetch fails
       setSelectedActivity(activity);
     }
   };
@@ -205,18 +208,20 @@ export default function ClubScores() {
     mutationFn: async (data: { matchId: number, entries: ScoreEntry[] }) => {
       // Create creation promises for all entries
       const promises = data.entries.map(entry => {
+        const nameToId = (name: string) =>
+          activityParticipants.find(p => p.name === name)?.id ?? 0;
         const payload: ScoreRecordRequest = {
           matchId: data.matchId,
-          teamAName: entry.teamA.join(" & "), // Join names for API
-          teamBName: entry.teamB.join(" & "),
-          teamAScore: Number(entry.scoreA),
-          teamBScore: Number(entry.scoreB)
+          teamHomeScore: Number(entry.scoreA),
+          teamHomePlayers: entry.teamA.map(nameToId),
+          teamGuestScore: Number(entry.scoreB),
+          teamGuestPlayers: entry.teamB.map(nameToId),
         };
         return createScoreRecord(token!, payload);
       });
       return Promise.all(promises);
     },
-    onSuccess: (results) => {
+    onSuccess: (results, variables) => {
       toast({
         title: "儲存成功",
         description: `已新增 ${results.length} 筆比賽紀錄`,
@@ -225,7 +230,7 @@ export default function ClubScores() {
       setAddingToActivity(null);
       setScoreEntries([{ id: "1", matchType: "1v1", customTeamSize: 1, teamA: [], teamB: [], scoreA: "", scoreB: "" }]);
       queryClient.invalidateQueries({ queryKey: ['matches', groupId] });
-      queryClient.invalidateQueries({ queryKey: ['scores', data.matchId] });
+      queryClient.invalidateQueries({ queryKey: ['scores', variables.matchId] });
     },
     onError: (error: Error) => {
       toast({
@@ -236,7 +241,6 @@ export default function ClubScores() {
     }
   });
 
-  const totalMatches = 0; // matches.reduce((sum, a) => sum + (a.scoreCount || 0), 0); // Need API support for correct count
 
   const getTeamSize = (entry: ScoreEntry) => {
     if (entry.matchType === "custom") return entry.customTeamSize;
@@ -330,10 +334,10 @@ export default function ClubScores() {
     const headers = ["場次", "隊伍A", "得分A", "得分B", "隊伍B"];
     const rows = records.map((r, i) => [
       i + 1,
-      `"${r.teamAName}"`,
-      r.teamAScore,
-      r.teamBScore,
-      `"${r.teamBName}"`,
+      `"${r.teamHomePlayerNames.join(" & ")}"`,
+      r.teamHomeScore,
+      r.teamGuestScore,
+      `"${r.teamGuestPlayerNames.join(" & ")}"`,
     ]);
     const csvContent = [headers.join(","), ...rows.map(r => r.join(","))].join("\n");
     // UTF-8 BOM 讓 Excel 正確顯示中文
@@ -403,25 +407,27 @@ export default function ClubScores() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
           <Card>
             <CardContent className="p-4">
-              <div className="text-2xl font-bold text-foreground">{matches?.length || 0}</div>
+              <div className="text-2xl font-bold text-foreground">{filteredActivities.length}</div>
               <div className="text-sm text-muted-foreground">有紀錄的活動</div>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="p-4">
-              <div className="text-2xl font-bold text-foreground">{totalMatches}</div>
-              <div className="text-sm text-muted-foreground">總比賽場次</div>
+              <div className="text-2xl font-bold text-foreground">{rankData?.scoreRecordCount ?? 0}</div>
+              <div className="text-sm text-muted-foreground">本月比賽場次</div>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="p-4">
-              <div className="text-2xl font-bold text-foreground">5</div>
+              <div className="text-2xl font-bold text-foreground">{rankData?.rankings.length ?? 0}</div>
               <div className="text-sm text-muted-foreground">參與計分成員</div>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="p-4">
-              <div className="text-2xl font-bold text-primary">林小芳</div>
+              <div className="text-2xl font-bold text-primary">
+                {rankData?.rankings[0]?.userName ?? "-"}
+              </div>
               <div className="text-sm text-muted-foreground">本月 MVP</div>
             </CardContent>
           </Card>
@@ -478,7 +484,7 @@ export default function ClubScores() {
                           </div>
                           <div className="flex items-center gap-1">
                             <Users className="h-3.5 w-3.5" />
-                            {activity.participants?.length || 0} 人參與
+                            {(activity.participants?.length ?? activity.participantCount ?? 0) + 1} 人參與
                           </div>
                         </div>
                       </div>
@@ -509,41 +515,62 @@ export default function ClubScores() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Trophy className="h-5 w-5 text-primary" />
-                  成員排行榜
+                  本月排行榜
+                  {rankData && (
+                    <span className="text-sm font-normal text-muted-foreground ml-1">
+                      ({rankData.year}/{String(rankData.month).padStart(2, "0")} · {rankData.scoreRecordCount} 場)
+                    </span>
+                  )}
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-3">
-                  {mockRankings.map((player) => (
-                    <div key={player.rank} className="flex items-center justify-between p-4 rounded-lg bg-secondary">
-                      <div className="flex items-center gap-4">
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold ${
-                          player.rank === 1 ? "bg-yellow-500 text-white" :
-                          player.rank === 2 ? "bg-gray-400 text-white" :
-                          player.rank === 3 ? "bg-amber-600 text-white" :
-                          "bg-muted text-muted-foreground"
-                        }`}>
-                          {player.rank}
+                {isLoadingRank ? (
+                  <div className="flex justify-center py-8">
+                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                  </div>
+                ) : rankData && rankData.rankings.length > 0 ? (
+                  <div className="space-y-3">
+                    {rankData.rankings.map((player) => (
+                      <div key={player.userId} className="flex items-center justify-between p-4 rounded-lg bg-secondary">
+                        <div className="flex items-center gap-4">
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold ${
+                            player.rank === 1 ? "bg-yellow-500 text-white" :
+                            player.rank === 2 ? "bg-gray-400 text-white" :
+                            player.rank === 3 ? "bg-amber-600 text-white" :
+                            "bg-muted text-muted-foreground"
+                          }`}>
+                            {player.rank}
+                          </div>
+                          <div>
+                            <div className="font-medium text-foreground">{player.userName}</div>
+                            {player.rank === 1 && (
+                              <div className="text-xs text-yellow-500 font-semibold">本月 MVP</div>
+                            )}
+                          </div>
                         </div>
-                        <div className="font-medium text-foreground">{player.name}</div>
+                        <div className="flex items-center gap-6">
+                          <div className="text-center">
+                            <div className="font-semibold text-primary">{player.wins}</div>
+                            <div className="text-xs text-muted-foreground">勝</div>
+                          </div>
+                          <div className="text-center">
+                            <div className="font-semibold text-destructive">{player.losses}</div>
+                            <div className="text-xs text-muted-foreground">敗</div>
+                          </div>
+                          <div className="text-center min-w-[60px]">
+                            <div className="font-semibold text-foreground">{player.winRate}%</div>
+                            <div className="text-xs text-muted-foreground">勝率</div>
+                          </div>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-6">
-                        <div className="text-center">
-                          <div className="font-semibold text-primary">{player.wins}</div>
-                          <div className="text-xs text-muted-foreground">勝</div>
-                        </div>
-                        <div className="text-center">
-                          <div className="font-semibold text-destructive">{player.losses}</div>
-                          <div className="text-xs text-muted-foreground">敗</div>
-                        </div>
-                        <div className="text-center min-w-[60px]">
-                          <div className="font-semibold text-foreground">{player.winRate}</div>
-                          <div className="text-xs text-muted-foreground">勝率</div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <Trophy className="h-12 w-12 mx-auto mb-3 opacity-30" />
+                    <p>本月尚無排行資料</p>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -613,14 +640,14 @@ export default function ClubScores() {
                       scoreRecords.map((record) => (
                         <div key={record.id} className="p-3 rounded-lg border bg-card flex justify-between items-center group">
                           <div className="flex-1 grid grid-cols-[1fr,auto,1fr] gap-4 items-center">
-                            <div className="text-right font-medium text-sm truncate" title={record.teamAName}>
-                              {record.teamAName}
+                            <div className="text-right font-medium text-sm truncate" title={record.teamHomePlayerNames.join(" & ")}>
+                              {record.teamHomePlayerNames.join(" & ")}
                             </div>
                             <div className="dark:bg-secondary/50 bg-secondary px-3 py-1 rounded text-lg font-bold whitespace-nowrap">
-                              {record.teamAScore} : {record.teamBScore}
+                              {record.teamHomeScore} : {record.teamGuestScore}
                             </div>
-                            <div className="text-left font-medium text-sm truncate" title={record.teamBName}>
-                               {record.teamBName}
+                            <div className="text-left font-medium text-sm truncate" title={record.teamGuestPlayerNames.join(" & ")}>
+                               {record.teamGuestPlayerNames.join(" & ")}
                             </div>
                           </div>
                           <Button
@@ -642,11 +669,10 @@ export default function ClubScores() {
                   </div>
 
                   <div className="pt-4 border-t">
-                    <h4 className="font-semibold text-foreground mb-3">參與成員 ({selectedActivity.participants?.length || 0})</h4>
+                    <h4 className="font-semibold text-foreground mb-3">參與成員 ({selectedActivityParticipants.length})</h4>
                     <div className="flex flex-wrap gap-2">
-                    {/* Assuming participants is array of {id, name} or similar. If not, safe access */}
-                      {selectedActivity.participants?.map((p: any, i: number) => (
-                        <Badge key={p.id || i} variant="secondary">{p.name || p}</Badge>
+                      {selectedActivityParticipants.map((p) => (
+                        <Badge key={p.id} variant="secondary">{p.name}</Badge>
                       ))}
                     </div>
                   </div>

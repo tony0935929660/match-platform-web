@@ -547,3 +547,46 @@ export async function getGroupPayments(token: string, groupId: number): Promise<
   }
   return result as PaymentResponse[];
 }
+
+// 排行榜單筆
+export interface GroupRankEntry {
+  rank: number;
+  userId: number;
+  userName: string;
+  publicId: string;
+  wins: number;
+  losses: number;
+  winRate: number;
+}
+
+// 排行榜回應
+export interface GroupRankResponse {
+  groupId: number;
+  year: number;
+  month: number;
+  scoreRecordCount: number;
+  rankings: GroupRankEntry[];
+}
+
+/**
+ * 取得球團本月排行榜
+ */
+export async function getGroupRank(token: string, groupId: number): Promise<GroupRankResponse> {
+  const response = await fetch(`${API_BASE_URL}/api/groups/${groupId}/rank`, {
+    method: "GET",
+    headers: {
+      "Authorization": `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`取得排行榜失敗 (${response.status})`);
+  }
+
+  const result = await response.json();
+  if (result.success !== undefined && result.data) {
+    return result.data as GroupRankResponse;
+  }
+  return result as GroupRankResponse;
+}

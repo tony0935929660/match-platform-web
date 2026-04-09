@@ -268,6 +268,18 @@ export default function ClubDashboard() {
     enabled: !!token && !!currentClub,
   });
 
+  // Fetch all matches to find recent score-enabled ones
+  const { data: allMatchesData } = useQuery({
+    queryKey: ['allMatchesForScore', currentClub?.id],
+    queryFn: () => getMatches(token!, { groupId: currentClub!.id, pageSize: 100 }),
+    enabled: !!token && !!currentClub,
+  });
+
+  const recentScoreActivities = (allMatchesData?.content || [])
+    .filter(a => a.isScoreRecordEnabled && new Date(a.endDateTime) < new Date())
+    .sort((a, b) => new Date(b.endDateTime).getTime() - new Date(a.endDateTime).getTime())
+    .slice(0, 3);
+
   const now = new Date();
   
   // Sort activities by closeness to now, filter out past activities
@@ -720,33 +732,41 @@ export default function ClubDashboard() {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-3">
-                    {mockScores.map((score) => (
-                      <div key={score.id} className="flex items-center justify-between p-4 rounded-lg bg-secondary">
-                        <div className="text-sm text-muted-foreground">{score.date}</div>
-                        <div className="flex items-center gap-4">
-                          <div className="text-right">
-                            <div className="font-medium text-foreground">{score.player1}</div>
+                  {recentScoreActivities.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <Trophy className="h-12 w-12 mx-auto mb-3 opacity-30" />
+                      <p>尚無計分活動紀錄</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {recentScoreActivities.map(activity => (
+                        <div key={activity.id} className="p-4 rounded-lg border bg-card">
+                          <div className="flex items-center gap-2 mb-1">
+                            <SportBadge sport={getSportType(activity.sport)} size="sm" />
                           </div>
-                          <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-background">
-                            <span className={`text-xl font-bold ${score.score1 > score.score2 ? "text-primary" : "text-muted-foreground"}`}>
-                              {score.score1}
-                            </span>
-                            <span className="text-muted-foreground">:</span>
-                            <span className={`text-xl font-bold ${score.score2 > score.score1 ? "text-primary" : "text-muted-foreground"}`}>
-                              {score.score2}
-                            </span>
-                          </div>
-                          <div className="text-left">
-                            <div className="font-medium text-foreground">{score.player2}</div>
+                          <div className="font-semibold text-foreground mb-1">{activity.name}</div>
+                          <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
+                            <div className="flex items-center gap-1">
+                              <Calendar className="h-3.5 w-3.5" />
+                              {new Date(activity.dateTime).toLocaleDateString()}
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <Clock className="h-3.5 w-3.5" />
+                              {new Date(activity.dateTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <MapPin className="h-3.5 w-3.5" />
+                              {activity.address}
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <Users className="h-3.5 w-3.5" />
+                              {(activity.participants?.length ?? activity.participantCount ?? 0) + 1} 人參與
+                            </div>
                           </div>
                         </div>
-                        <Button variant="ghost" size="icon">
-                          <MoreVertical className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </TabsContent>
