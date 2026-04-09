@@ -346,11 +346,9 @@ export default function ClubNewActivity() {
                   <div className="space-y-2">
                     <Label htmlFor="date">日期 *</Label>
                     <div className="relative">
-                      <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                       <Input
                         id="date"
                         type="date"
-                        className="pl-10"
                         value={activity.date}
                         onChange={(e) => setActivity({ ...activity, date: e.target.value })}
                       />
@@ -359,11 +357,9 @@ export default function ClubNewActivity() {
                   <div className="space-y-2">
                     <Label htmlFor="startTime">開始時間</Label>
                     <div className="relative">
-                      <Clock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                       <Input
                         id="startTime"
                         type="time"
-                        className="pl-10"
                         value={activity.startTime}
                         onChange={(e) => setActivity({ ...activity, startTime: e.target.value })}
                       />
@@ -372,11 +368,9 @@ export default function ClubNewActivity() {
                   <div className="space-y-2">
                     <Label htmlFor="endTime">結束時間</Label>
                     <div className="relative">
-                      <Clock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                       <Input
                         id="endTime"
                         type="time"
-                        className="pl-10"
                         value={activity.endTime}
                         onChange={(e) => setActivity({ ...activity, endTime: e.target.value })}
                       />
