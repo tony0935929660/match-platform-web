@@ -34,19 +34,26 @@ import AdminDashboard from "./pages/AdminDashboard";
 import Sitemap from "./pages/Sitemap";
 import NotFound from "./pages/NotFound";
 import ClubJoin from "./pages/ClubJoin";
+import { useAuth } from "@/contexts/AuthContext";
+import { Loader2 } from "lucide-react";
 
 const queryClient = new QueryClient();
 
-export default function App() {
+function AppRoutes() {
+  const { isLoading, isLiffEnvironment } = useAuth();
+
+  if (isLoading && isLiffEnvironment) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-background">
+        <img src="/matchplatform_logo.png" alt="揪團GO" className="w-16 h-16 rounded-2xl object-contain" />
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <p className="text-sm text-muted-foreground">正在登入中，請稍候...</p>
+      </div>
+    );
+  }
+
   return (
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <ClubProvider>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
-            <Routes>
+    <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/login" element={<Login />} />
               <Route path="/auth/line/callback" element={<LineCallback />} />
@@ -77,9 +84,22 @@ export default function App() {
               <Route path="/admin" element={<AdminDashboard />} />
               <Route path="/sitemap" element={<Sitemap />} />
               <Route path="*" element={<NotFound />} />
-            </Routes>
-          </BrowserRouter>
-        </TooltipProvider>
+    </Routes>
+  );
+}
+
+export default function App() {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <ClubProvider>
+          <TooltipProvider>
+            <Toaster />
+            <Sonner />
+            <BrowserRouter>
+              <AppRoutes />
+            </BrowserRouter>
+          </TooltipProvider>
         </ClubProvider>
       </AuthProvider>
     </QueryClientProvider>
