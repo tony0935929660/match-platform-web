@@ -382,7 +382,6 @@ export default function ActivityDetail() {
                           <span className="text-xs px-1.5 py-0.5 rounded bg-primary/10 text-primary">主揪</span>
                         )}
                       </div>
-                      <SkillLevelBadge level={participant.level} size="sm" />
                     </div>
                   </div>
                 ))}

@@ -1,4 +1,6 @@
 import { createContext, useContext, useState, useEffect, ReactNode, useRef } from "react";
+import { initLiff, isInLiff } from "@/lib/liff";
+import { loginWithLiff } from "@/services/liffAuth";
 
 export interface User {
   id: string;
@@ -12,6 +14,7 @@ interface AuthContextType {
   token: string | null;
   isLoading: boolean;
   isAuthenticated: boolean;
+  isLiffEnvironment: boolean;
   login: () => void;
   logout: () => void;
   setUser: (user: User | null) => void;
@@ -54,6 +57,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLiffEnvironment, setIsLiffEnvironment] = useState(false);
 
   // Use refs to keep track of current state inside the fetch interceptor
   const userRef = useRef(user);
@@ -75,33 +79,52 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logoutRef = useRef(logout);
   useEffect(() => { logoutRef.current = logout; }, [logout]);
 
-  // 從 localStorage 載入用戶資料和 Token
+  // 初始化 LIFF 並嘗試自動登入，否則 fallback 到 localStorage
   useEffect(() => {
-    const storedAuth = localStorage.getItem(AUTH_STORAGE_KEY);
-    const storedToken = localStorage.getItem(TOKEN_STORAGE_KEY);
-    
-    // Check if token is expired immediately upon load
-    if (storedToken && !isTokenValid(storedToken)) {
-         logout();
-         setIsLoading(false);
-         return;
-    }
-
-    if (storedAuth) {
+    const initialize = async () => {
       try {
-        const userData = JSON.parse(storedAuth);
-        setUser(userData);
-      } catch (error) {
-        console.error("Failed to parse stored auth data:", error);
-        localStorage.removeItem(AUTH_STORAGE_KEY);
+        await initLiff();
+
+        if (isInLiff()) {
+          setIsLiffEnvironment(true);
+          const { user: liffUser, token: liffToken } = await loginWithLiff();
+          setUser(liffUser);
+          setToken(liffToken);
+          setIsLoading(false);
+          return;
+        }
+      } catch (err) {
+        console.error("LIFF init / login failed, falling back to localStorage:", err);
       }
-    }
-    
-    if (storedToken) {
-      setToken(storedToken);
-    }
-    
-    setIsLoading(false);
+
+      // Fallback：從 localStorage 載入用戶資料和 Token
+      const storedAuth = localStorage.getItem(AUTH_STORAGE_KEY);
+      const storedToken = localStorage.getItem(TOKEN_STORAGE_KEY);
+
+      if (storedToken && !isTokenValid(storedToken)) {
+        logout();
+        setIsLoading(false);
+        return;
+      }
+
+      if (storedAuth) {
+        try {
+          const userData = JSON.parse(storedAuth);
+          setUser(userData);
+        } catch (error) {
+          console.error("Failed to parse stored auth data:", error);
+          localStorage.removeItem(AUTH_STORAGE_KEY);
+        }
+      }
+
+      if (storedToken) {
+        setToken(storedToken);
+      }
+
+      setIsLoading(false);
+    };
+
+    initialize();
   }, []);
 
   // Global fetch interceptor for 401
@@ -172,6 +195,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [token]);
 
   const login = (redirectUrl?: string) => {
+    // LIFF 環境內不跳轉 OAuth 頁面（使用者已透過 LIFF 自動登入）
+    if (isInLiff()) return;
+
     // 導向 LINE 登入
     const clientId = import.meta.env.VITE_LINE_CHANNEL_ID;
     const redirectUri = import.meta.env.VITE_LINE_REDIRECT_URI || `${window.location.origin}/auth/line/callback`;
@@ -205,6 +231,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         token,
         isLoading,
         isAuthenticated: !!user && !!token,
+        isLiffEnvironment,
         login,
         logout,
         setUser,
