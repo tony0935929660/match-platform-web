@@ -47,9 +47,7 @@ export function Header() {
       <div className="container flex h-16 items-center justify-between">
         {/* Logo */}
         <Link to="/" className="flex items-center gap-2">
-          <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center">
-            <span className="text-xl">🏸</span>
-          </div>
+          <img src="/matchplatform_logo.png" alt="揪團GO" className="w-9 h-9 rounded-xl object-contain" />
           <span className="font-bold text-xl text-foreground hidden sm:block">揪團GO</span>
         </Link>
         
