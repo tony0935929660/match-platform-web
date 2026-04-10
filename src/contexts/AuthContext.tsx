@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, ReactNode, useRef } from "react";
 import { initLiff, isInLiff } from "@/lib/liff";
 import { loginWithLiff } from "@/services/liffAuth";
+import { toast } from "@/hooks/use-toast";
 
 export interface User {
   id: string;
@@ -87,13 +88,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         if (isInLiff()) {
           setIsLiffEnvironment(true);
+          toast({ title: "LIFF 環境偵測成功，嘗試登入..." });
           const { user: liffUser, token: liffToken } = await loginWithLiff();
           setUser(liffUser);
           setToken(liffToken);
           setIsLoading(false);
+          toast({ title: `LIFF 登入成功：${liffUser.displayName}` });
           return;
+        } else {
+          toast({ title: "非 LIFF 環境，使用一般登入流程" });
         }
       } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        toast({ title: "LIFF 登入失敗", description: msg, variant: "destructive" });
         console.error("LIFF init / login failed, falling back to localStorage:", err);
       }
 
