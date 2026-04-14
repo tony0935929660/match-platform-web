@@ -5,8 +5,15 @@ let initPromise: Promise<void> | null = null;
 
 /**
  * 初始化 LIFF SDK（單例，只執行一次）
+ * 在 LINE OAuth callback 頁面跳過，避免 LIFF SDK 攔截 code/state 參數
  */
 export async function initLiff(): Promise<void> {
+  // 若目前在 LINE OAuth callback 路徑，略過 LIFF init
+  // 避免 liff.init() 把 OAuth code/state 當成 LIFF 的參數處理
+  if (window.location.pathname.startsWith("/auth/line/callback")) {
+    return;
+  }
+
   if (initialized) return;
   if (initPromise) return initPromise;
 
