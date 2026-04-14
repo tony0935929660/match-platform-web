@@ -1,7 +1,6 @@
 import { createContext, useContext, useState, useEffect, ReactNode, useRef } from "react";
 import { initLiff, isInLiff } from "@/lib/liff";
 import { loginWithLiff } from "@/services/liffAuth";
-import { toast } from "@/hooks/use-toast";
 
 export interface User {
   id: string;
@@ -85,10 +84,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const initialize = async () => {
       try {
         await initLiff();
-        toast({ title: `[D1] init done, isInLiff=${isInLiff()}` });
       } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
-        toast({ title: "[D3a] initLiff 失敗", description: msg, variant: "destructive" });
         console.error("initLiff failed:", err);
       }
 
@@ -99,11 +95,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setUser(liffUser);
           setToken(liffToken);
           setIsLoading(false);
-          toast({ title: `[D2] 登入成功: ${liffUser.displayName}` });
           return;
         } catch (err) {
-          const msg = err instanceof Error ? err.message : String(err);
-          toast({ title: "[D3b] loginWithLiff 失敗", description: msg, variant: "destructive" });
           console.error("loginWithLiff failed:", err);
         }
       }
