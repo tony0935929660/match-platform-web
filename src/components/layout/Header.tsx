@@ -126,25 +126,25 @@ export function Header() {
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
+                  <Link to="/profile/activities" className="flex items-center gap-2 cursor-pointer">
+                    <Calendar className="h-4 w-4" />
+                    我的活動
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
                   <Link to="/club" className="flex items-center gap-2 cursor-pointer">
                     <Users className="h-4 w-4" />
                     我的球團
                   </Link>
                 </DropdownMenuItem>
-                {/* 
-                <DropdownMenuItem asChild>
-                  <Link to="/course" className="flex items-center gap-2 cursor-pointer">
-                    <BookOpen className="h-4 w-4" />
-                    課程管理
-                  </Link>
-                </DropdownMenuItem> 
-                */}
+                {/* 管理後台暫時隱藏
                 <DropdownMenuItem asChild>
                   <Link to="/admin" className="flex items-center gap-2 cursor-pointer">
                     <Settings className="h-4 w-4" />
                     管理後台
                   </Link>
                 </DropdownMenuItem>
+                */
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleLogout} className="flex items-center gap-2 cursor-pointer text-destructive focus:text-destructive">
                   <LogOut className="h-4 w-4" />
@@ -243,12 +243,12 @@ export function Header() {
                       會員中心
                     </Link>
                     <Link
-                      to="/admin"
+                      to="/profile/activities"
                       onClick={() => setMobileOpen(false)}
                       className="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary"
                     >
-                      <Settings className="h-5 w-5" />
-                      管理後台
+                      <Calendar className="h-5 w-5" />
+                      我的活動
                     </Link>
                     <button
                       onClick={() => {
