@@ -32,6 +32,8 @@ import ClubScores from "./pages/ClubScores";
 // import CourseDetail from "./pages/CourseDetail";
 import AdminDashboard from "./pages/AdminDashboard";
 import Sitemap from "./pages/Sitemap";
+import Privacy from "./pages/Privacy";
+import Terms from "./pages/Terms";
 import NotFound from "./pages/NotFound";
 import ClubJoin from "./pages/ClubJoin";
 import { useAuth } from "@/contexts/AuthContext";
@@ -83,6 +85,8 @@ function AppRoutes() {
               {/* <Route path="/course/payments" element={<CoursePayments />} /> */}
               <Route path="/admin" element={<AdminDashboard />} />
               <Route path="/sitemap" element={<Sitemap />} />
+              <Route path="/privacy" element={<Privacy />} />
+              <Route path="/terms" element={<Terms />} />
               <Route path="*" element={<NotFound />} />
     </Routes>
   );
