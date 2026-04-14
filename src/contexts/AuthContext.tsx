@@ -86,20 +86,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         await initLiff();
         toast({ title: `[D1] init done, isInLiff=${isInLiff()}` });
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        toast({ title: "[D3a] initLiff 失敗", description: msg, variant: "destructive" });
+        console.error("initLiff failed:", err);
+      }
 
-        if (isInLiff()) {
-          setIsLiffEnvironment(true);
+      if (isInLiff()) {
+        setIsLiffEnvironment(true);
+        try {
           const { user: liffUser, token: liffToken } = await loginWithLiff();
           setUser(liffUser);
           setToken(liffToken);
           setIsLoading(false);
           toast({ title: `[D2] 登入成功: ${liffUser.displayName}` });
           return;
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          toast({ title: "[D3b] loginWithLiff 失敗", description: msg, variant: "destructive" });
+          console.error("loginWithLiff failed:", err);
         }
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
-        toast({ title: "[D3] LIFF 失敗", description: msg, variant: "destructive" });
-        console.error("LIFF init / login failed, falling back to localStorage:", err);
       }
 
       // Fallback：從 localStorage 載入用戶資料和 Token
