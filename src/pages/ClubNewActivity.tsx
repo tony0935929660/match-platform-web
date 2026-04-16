@@ -58,15 +58,15 @@ export default function ClubNewActivity() {
     location: "",
     address: "",
     description: "",
-    maxSlots: 8,
+    maxSlots: "8",
     unlimitedSlots: false,
-    price: 150,
+    price: "150",
     levelMin: 1,
     levelMax: 8,
     // Club-specific: Casual settings
     isCasualOpen: true,
     casualWaitlistEnabled: false,
-    casualWaitlistMinutes: 60,
+    casualWaitlistMinutes: "60",
     // Club-specific: Scoring mode
     isScoringMode: false,
   });
@@ -140,7 +140,7 @@ export default function ClubNewActivity() {
       return;
     }
 
-    if (!activity.unlimitedSlots && (!activity.maxSlots || activity.maxSlots <= 0)) {
+    if (!activity.unlimitedSlots && (!activity.maxSlots || Number(activity.maxSlots) <= 0)) {
         toast({
           title: "請設定人數上限",
           description: "若未勾選無上限，請輸入有效的人數",
@@ -161,15 +161,15 @@ export default function ClubNewActivity() {
       address: activity.address || "",
       dateTime,
       endDateTime,
-      price: activity.price,
+      price: Number(activity.price),
       unit: 1, // 固定每人
       groupId: currentGroup.id,
-      requiredPeople: activity.unlimitedSlots ? null : activity.maxSlots,
+      requiredPeople: activity.unlimitedSlots ? null : Number(activity.maxSlots),
       maxGrade: activity.levelMax,
       minGrade: activity.levelMin,
       remark: activity.description || undefined,
       isGuestPlayerAllowed: activity.isCasualOpen,
-      guestPlayerJoinBeforeStartMinutes: activity.casualWaitlistEnabled ? activity.casualWaitlistMinutes : 0,
+      guestPlayerJoinBeforeStartMinutes: activity.casualWaitlistEnabled ? Number(activity.casualWaitlistMinutes) : 0,
       isScoreRecordEnabled: activity.isScoringMode,
     };
 
@@ -243,14 +243,14 @@ export default function ClubNewActivity() {
                   location: "",
                   address: "",
                   description: "",
-                  maxSlots: 8,
+                  maxSlots: "8",
                   unlimitedSlots: false,
-                  price: 150,
+                  price: "150",
                   levelMin: 1,
                   levelMax: 8,
                   isCasualOpen: true,
                   casualWaitlistEnabled: false,
-                  casualWaitlistMinutes: 60,
+                  casualWaitlistMinutes: "60",
                   isScoringMode: false,
                 });
               }}>
@@ -342,7 +342,7 @@ export default function ClubNewActivity() {
                 </div>
 
                 {/* Date & Time */}
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div className="space-y-2">
                     <Label htmlFor="date">日期 *</Label>
                     <div className="relative">
@@ -451,7 +451,7 @@ export default function ClubNewActivity() {
                           min={2}
                           max={50}
                           value={activity.maxSlots}
-                          onChange={(e) => setActivity({ ...activity, maxSlots: Number(e.target.value) })}
+                          onChange={(e) => setActivity({ ...activity, maxSlots: e.target.value })}
                         />
                       </div>
                     </div>
@@ -466,7 +466,7 @@ export default function ClubNewActivity() {
                         className="pl-10"
                         min={0}
                         value={activity.price}
-                        onChange={(e) => setActivity({ ...activity, price: Number(e.target.value) })}
+                        onChange={(e) => setActivity({ ...activity, price: e.target.value })}
                       />
                     </div>
                   </div>
@@ -545,7 +545,7 @@ export default function ClubNewActivity() {
                             min={15}
                             max={1440}
                             value={activity.casualWaitlistMinutes}
-                            onChange={(e) => setActivity({ ...activity, casualWaitlistMinutes: Number(e.target.value) })}
+                            onChange={(e) => setActivity({ ...activity, casualWaitlistMinutes: e.target.value })}
                           />
                           <span className="text-sm text-muted-foreground">
                             活動開始前 {activity.casualWaitlistMinutes} 分鐘開放臨打報名
