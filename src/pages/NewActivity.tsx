@@ -75,8 +75,8 @@ export default function NewActivity() {
     location: "",
     address: "",
     description: "",
-    maxSlots: 8,
-    price: 150,
+    maxSlots: "8",
+    price: "150",
     levelMin: 1,
     levelMax: 8,
   });
@@ -136,10 +136,10 @@ export default function NewActivity() {
   };
 
   const handleSubmit = async () => {
-    if (!activity.title || !activity.date || !activity.location) {
+    if (!activity.title || !activity.date || !activity.location || !activity.address) {
       toast({
         title: "請填寫必要欄位",
-        description: "活動名稱、日期和地點為必填",
+        description: "活動名稱、日期、地點和詳細地址為必填",
         variant: "destructive",
       });
       return;
@@ -179,9 +179,9 @@ export default function NewActivity() {
         address: activity.address,
         dateTime: startDateTime,
         endDateTime: endDateTime,
-        price: activity.price,
+        price: Number(activity.price),
         unit: 1, // 每人
-        requiredPeople: activity.maxSlots,
+        requiredPeople: Number(activity.maxSlots) || null,
         maxGrade: activity.levelMax,
         minGrade: activity.levelMin,
         remark: activity.description,
@@ -273,8 +273,8 @@ export default function NewActivity() {
                   location: "",
                   address: "",
                   description: "",
-                  maxSlots: 8,
-                  price: 150,
+                  maxSlots: "8",
+                  price: "150",
                   levelMin: 1,
                   levelMax: 8,
                 });
@@ -367,7 +367,7 @@ export default function NewActivity() {
                 </div>
 
                 {/* Date & Time */}
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div className="space-y-2">
                     <Label htmlFor="date">日期 *</Label>
                     <div className="relative">
@@ -420,7 +420,7 @@ export default function NewActivity() {
 
                 {/* Address */}
                 <div className="space-y-2">
-                  <Label htmlFor="address">詳細地址</Label>
+                  <Label htmlFor="address">詳細地址 *</Label>
                   <Input
                     id="address"
                     placeholder="例：台北市大安區辛亥路三段55號"
@@ -462,7 +462,7 @@ export default function NewActivity() {
                         min={2}
                         max={50}
                         value={activity.maxSlots}
-                        onChange={(e) => setActivity({ ...activity, maxSlots: Number(e.target.value) })}
+                        onChange={(e) => setActivity({ ...activity, maxSlots: e.target.value })}
                       />
                     </div>
                   </div>
@@ -476,7 +476,7 @@ export default function NewActivity() {
                         className="pl-10"
                         min={0}
                         value={activity.price}
-                        onChange={(e) => setActivity({ ...activity, price: Number(e.target.value) })}
+                        onChange={(e) => setActivity({ ...activity, price: e.target.value })}
                       />
                     </div>
                   </div>
